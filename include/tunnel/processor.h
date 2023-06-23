@@ -46,7 +46,7 @@ public:
 
   virtual ~Processor() {}
 
-  uint64_t GetId() noexcept { return processor_id_; }
+  uint64_t &GetId() noexcept { return processor_id_; }
 
   const std::vector<Channel<T>> &GetInputPorts() const { return input_ports; }
 

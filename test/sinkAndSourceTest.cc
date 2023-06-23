@@ -1,3 +1,4 @@
+#include "tunnel/pipeline.h"
 #include "tunnel/sink.h"
 #include "tunnel/source.h"
 #include "tunnel/transform.h"
@@ -40,7 +41,7 @@ public:
   }
 };
 
-TEST(TestSink, basic) {
+TEST(TestSinkSource, basic) {
   SinkTest sink;
   SourceTest source;
   SourceTest source2;
@@ -56,5 +57,21 @@ TEST(TestSink, basic) {
   source2.work().via(&ex).start([](Try<void>) {});
   transform.work().via(&ex).start([](Try<void>) {});
   syncAwait(sink.work().via(&ex));
+  EXPECT_EQ(result, 5050 * 3);
+}
+
+TEST(TestPipeline, basic) {
+  async_simple::executors::SimpleExecutor ex(4);
+  Pipeline<int> pipeline;
+  pipeline.AddSource(std::make_unique<SourceTest>());
+  auto s2 = std::make_unique<SourceTest>();
+  uint64_t id = s2->GetId();
+  pipeline.AddSource(std::move(s2));
+  pipeline.AddTransformTo(id, std::make_unique<TransformTest>());
+  auto sink = std::make_unique<SinkTest>();
+  int result = 0;
+  sink->callback = [&](int v) { result += v; };
+  pipeline.SetSink(std::move(sink));
+  async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   EXPECT_EQ(result, 5050 * 3);
 }
