@@ -1,13 +1,13 @@
-#pragma once
-
-#include "async_simple/Try.h"
-#include "async_simple/coro/ConditionVariable.h"
-#include "async_simple/coro/Lazy.h"
-#include "async_simple/coro/Mutex.h"
+#ifndef TUNNEL_BOUNDED_QUEUE_H
+#define TUNNEL_BOUNDED_QUEUE_H
 
 #include <concepts>
 #include <deque>
 #include <type_traits>
+
+#include "async_simple/coro/ConditionVariable.h"
+#include "async_simple/coro/Lazy.h"
+#include "async_simple/coro/Mutex.h"
 
 namespace tunnel {
 
@@ -17,7 +17,7 @@ using async_simple::coro::Lazy;
 
 template <typename T, class Lock = async_simple::coro::Mutex>
 class BoundedQueue {
-public:
+ public:
   using element_type = T;
 
   explicit BoundedQueue(size_t capacity) : capacity_(capacity) {}
@@ -45,36 +45,31 @@ public:
   }
 
   template <typename T2>
-  requires std::is_convertible_v<T2, element_type> Lazy<void>
-  Push(T2 &&element) {
+  requires std::is_convertible_v<T2, element_type> Lazy<void> Push(T2 &&element) {
     auto lock = co_await mut_.coScopedLock();
     // 逻辑上来说不需要这个分支判断，但是这样处理可以避免
     // 一次co_await Lazy
     if (queue_.size() == this->Capacity()) {
-      co_await filled_cv_.wait(
-          mut_, [&]() { return this->queue_.size() < this->Capacity(); });
+      co_await filled_cv_.wait(mut_, [&]() { return this->queue_.size() < this->Capacity(); });
     }
     queue_.emplace_back(std::forward<T2>(element));
-    lock.unlock();
     empty_cv_.notifyOne();
   }
 
   template <typename T2>
-  requires std::is_convertible_v<T2, element_type> Lazy<bool>
-  TryPush(T2 &&element) {
+  requires std::is_convertible_v<T2, element_type> Lazy<bool> TryPush(T2 &&element) {
     auto lock = co_await mut_.coScopedLock();
     if (queue_.size() == Capacity()) {
       co_return false;
     }
     queue_.emplace_back(std::forward<T2>(element));
-    lock.unlock();
     empty_cv_.notifyOne();
     co_return true;
   }
 
   size_t Capacity() const noexcept { return capacity_; }
 
-private:
+ private:
   Lock mut_;
   ConditionVariable<Lock> empty_cv_;
   ConditionVariable<Lock> filled_cv_;
@@ -82,4 +77,6 @@ private:
   const size_t capacity_;
 };
 
-} // namespace tunnel
+}  // namespace tunnel
+
+#endif

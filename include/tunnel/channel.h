@@ -1,39 +1,36 @@
-#pragma once
-
-#include "queue/boundedqueue.h"
+#ifndef TUNNEL_CHANNEL_H
+#define TUNNEL_CHANNEL_H
 
 #include <cstdint>
 #include <memory>
 #include <optional>
 
+#include "queue/boundedqueue.h"
+
 namespace tunnel {
 
-template <typename T> class Channel {
-public:
-  constexpr static size_t default_channel_size = 3;
+constexpr static size_t default_channel_size = 3;
+
+template <typename T>
+class Channel {
+ public:
   using element_type = std::optional<T>;
 
-  friend bool operator==(const Channel &lh, const Channel &rh) {
-    return lh.input_id_ == rh.input_id_ && lh.output_id_ == rh.output_id_;
-  }
+  Channel() : queue_(nullptr) {}
 
-  Channel(uint64_t in, uint64_t out)
-      : input_id_(in), output_id_(out),
-        queue_(std::make_shared<BoundedQueue<element_type>>(
-            default_channel_size)) {}
+  Channel(std::shared_ptr<BoundedQueue<element_type>> queue) : queue_(queue) {}
 
   Channel(const Channel &) = default;
   Channel &operator=(const Channel &) = default;
 
-  uint64_t GetInputId() const noexcept { return input_id_; }
-  uint64_t GetOutputId() const noexcept { return output_id_; }
-
   BoundedQueue<element_type> &GetQueue() { return *queue_; }
 
-private:
-  uint64_t input_id_;
-  uint64_t output_id_;
+  operator bool() const { return queue_.operator bool(); }
+
+ private:
   std::shared_ptr<BoundedQueue<element_type>> queue_;
 };
 
-} // namespace tunnel
+}  // namespace tunnel
+
+#endif

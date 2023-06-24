@@ -1,36 +1,31 @@
-#pragma once
+#ifndef TUNNEL_SINK_H
+#define TUNNEL_SINK_H
+
+#include <memory>
 
 #include "tunnel/channel.h"
 #include "tunnel/processor.h"
 
-#include <memory>
-#include <vector>
-
 namespace tunnel {
 
-template <typename T> class Sink : public Processor<T> {
-public:
+template <typename T>
+class Sink : public Processor<T> {
+ public:
   virtual async_simple::coro::Lazy<void> work() override {
-    std::vector<Channel<T>> &inputs = this->GetInputPorts();
+    Channel<T> &input = this->GetInputPort();
     while (true) {
-      if (inputs.empty()) {
+      std::optional<T> value = co_await this->Pop();
+      if (value.has_value()) {
+        co_await consume(std::move(value).value());
+      } else {
         co_return;
       }
-      for (auto it = inputs.begin(); it != inputs.end();) {
-        std::optional<T> value = co_await (*it).GetQueue().Pop();
-        // queue eof
-        if (!value.has_value()) {
-          it = inputs.erase(it);
-          continue;
-        }
-        co_await consume(std::move(value).value());
-        it = it + 1;
-      }
     }
-    co_return;
   }
 
   virtual async_simple::coro::Lazy<void> consume(T &&value) = 0;
 };
 
-} // namespace tunnel
+}  // namespace tunnel
+
+#endif

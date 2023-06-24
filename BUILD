@@ -21,3 +21,12 @@ cc_test(
     "@googletest//:gtest_main",
   ]
 )
+
+cc_binary(
+  name = "example",
+  srcs = glob(["example/*.cc"]),
+  deps = [
+    ":tunnel",
+    "@async_simple//:simple_executors",
+  ],
+)

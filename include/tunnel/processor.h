@@ -1,11 +1,12 @@
-#pragma once
+#ifndef TUNNEL_PROCESSOR_H
+#define TUNNEL_PROCESSOR_H
 
 #include <algorithm>
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
-#include <vector>
 
 #include "async_simple/coro/Lazy.h"
 #include "tunnel/channel.h"
@@ -15,58 +16,82 @@ namespace tunnel {
 namespace detail {
 
 static uint64_t GenerateId() {
-  static std::atomic<uint64_t> id_{0};
+  static std::atomic<uint64_t> id_{1};
   return id_.fetch_add(1);
 }
-} // namespace detail
+}  // namespace detail
 
-template <typename T> class Processor {
-public:
-  Processor() : processor_id_(detail::GenerateId()) {}
+template <typename T>
+class Processor {
+ public:
+  Processor() : processor_id_(detail::GenerateId()), input_count_(0), output_count_(0) {}
 
-  virtual async_simple::coro::Lazy<void> work() {}
+  virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
 
-  void PushInputPort(const Channel<T> &input_port) {
-    auto it = std::find(input_ports.begin(), input_ports.end(), input_port);
-    if (it != input_ports.end()) {
-      throw std::runtime_error("PushInputPort error, duplicate id");
+  // input可能是一写多读或者多写一读的，
+  // 如果是多写一读，则需要等待所有写的eof；
+  // 如果是一写多读，则需要保证其他读也读到eof；
+  async_simple::coro::Lazy<std::optional<T>> Pop() {
+    while (true) {
+      std::optional<T> value = co_await input_port.GetQueue().Pop();
+      if (value.has_value()) {
+        co_return value;
+      }
+      assert(input_count_ > 0);
+      --input_count_;
+      if (input_count_ == 0) {
+        co_await input_port.GetQueue().Push(value);
+        co_return value;
+      }
     }
-    assert(input_port.GetOutputId() == GetId());
-    input_ports.push_back(input_port);
   }
 
-  void PushOutputPort(const Channel<T> &output_port) {
-    auto it = std::find(output_ports.begin(), output_ports.end(), output_port);
-    if (it != output_ports.end()) {
-      throw std::runtime_error("PushOutputPort error, duplicate id");
-    }
-    assert(output_port.GetInputId() == GetId());
-    output_ports.push_back(output_port);
+  void SetInputPort(const Channel<T> &input) {
+    input_port = input;
+    ++input_count_;
+  }
+
+  void SetOutputPort(const Channel<T> &output) {
+    output_port = output;
+    ++output_count_;
   }
 
   virtual ~Processor() {}
 
   uint64_t &GetId() noexcept { return processor_id_; }
 
-  const std::vector<Channel<T>> &GetInputPorts() const { return input_ports; }
+  const Channel<T> &GetInputPort() const { return input_port; }
 
-  std::vector<Channel<T>> &GetInputPorts() { return input_ports; }
+  Channel<T> &GetInputPort() { return input_port; }
 
-  const std::vector<Channel<T>> &GetOutputPorts() const { return output_ports; }
+  const Channel<T> &GetOutputPort() const { return output_port; }
 
-  std::vector<Channel<T>> &GetOutputPorts() { return output_ports; }
+  Channel<T> &GetOutputPort() { return output_port; }
 
-private:
+ private:
   uint64_t processor_id_;
-  std::vector<Channel<T>> input_ports;
-  std::vector<Channel<T>> output_ports;
+  Channel<T> input_port;
+  Channel<T> output_port;
+
+ protected:
+  size_t input_count_;
+  size_t output_count_;
 };
 
 template <typename T>
 inline void connect(Processor<T> &input, Processor<T> &output) {
-  Channel<T> channel(input.GetId(), output.GetId());
-  input.PushOutputPort(channel);
-  output.PushInputPort(channel);
+  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size));
+  input.SetOutputPort(channel);
+  output.SetInputPort(channel);
 }
 
-} // namespace tunnel
+template <typename T>
+inline void connect(Processor<T> &input, Processor<T> &output, std::shared_ptr<BoundedQueue<std::optional<T>>> &queue) {
+  Channel<T> channel(queue);
+  input.SetOutputPort(channel);
+  output.SetInputPort(channel);
+}
+
+}  // namespace tunnel
+
+#endif
