@@ -62,15 +62,15 @@ class Pipeline {
 
   uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink) { return merge<false>(std::move(sink)); }
 
-  uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink, const std::vector<uint64_t>& leaves) {
+  uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink, const std::unordered_set<uint64_t>& leaves) {
     return merge_to<false>(std::move(sink), leaves);
   }
 
-  uint64_t Merge(std::unique_ptr<Transform<T>>&& transform, const std::vector<uint64_t>& leaves) {
+  uint64_t Merge(std::unique_ptr<Transform<T>>&& transform, const std::unordered_set<uint64_t>& leaves) {
     return merge_to<true>(std::move(transform), leaves);
   }
 
-  uint64_t Merge(const std::vector<uint64_t>& leaves) {
+  uint64_t Merge(const std::unordered_set<uint64_t>& leaves) {
     auto no_op = std::make_unique<NoOpTransform<T>>();
     return merge_to<true>(std::move(no_op), leaves);
   }
@@ -82,17 +82,17 @@ class Pipeline {
     return merge<true>(std::move(no_op));
   }
 
-  std::vector<uint64_t> DispatchTo(uint64_t leaf, std::unique_ptr<Dispatch<T>>&& node) {
+  std::unordered_set<uint64_t> DispatchTo(uint64_t leaf, std::unique_ptr<Dispatch<T>>&& node) {
     if (leaves_.find(leaf) == leaves_.end()) {
       std::runtime_error("invalid leaf node id");
     }
-    std::vector<uint64_t> result;
+    std::unordered_set<uint64_t> result;
     size_t new_size = node->GetSize();
     for (size_t i = 0; i < new_size; ++i) {
       auto no_op = std::make_unique<NoOpTransform<T>>();
       connect(*node, *no_op);
       uint64_t noop_id = no_op->GetId();
-      result.push_back(noop_id);
+      result.insert(noop_id);
       nodes_.insert({noop_id, std::move(no_op)});
     }
     connect(*nodes_[leaf], *node);
@@ -121,6 +121,14 @@ class Pipeline {
     co_return;
   }
 
+  bool IsCompleted() const {
+    return leaves_.empty();
+  }
+
+  const std::unordered_set<uint64_t>& CurrentLeaves() const {
+    return leaves_;
+  }
+
  private:
   std::unordered_map<uint64_t, std::unique_ptr<Processor<T>>> nodes_;
   std::unordered_set<uint64_t> leaves_;
@@ -132,7 +140,7 @@ class Pipeline {
   }
 
   template <bool insert_to_leaves>
-  uint64_t merge_to(std::unique_ptr<Processor<T>>&& node, const std::vector<uint64_t>& leaves) {
+  uint64_t merge_to(std::unique_ptr<Processor<T>>&& node, const std::unordered_set<uint64_t>& leaves) {
     uint64_t id = node->GetId();
     node_check(id);
     auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size);
