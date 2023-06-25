@@ -10,6 +10,7 @@
 #define ASYNC_SIMPLE_HAS_NOT_AIO
 #include <functional>
 
+#include "async_simple/Try.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "async_simple/executors/SimpleExecutor.h"
 
@@ -37,18 +38,6 @@ class SourceTest : public Source<int> {
     co_return std::optional<int>{};
   }
   int num = 0;
-};
-
-class TransformTest : public SimpleTransform<int> {
- public:
-  virtual async_simple::coro::Lazy<int> transform(int &&v) override { co_return v * 2; }
-};
-
-class DispatchTest : public Dispatch<int> {
- public:
-  DispatchTest(size_t size) : Dispatch<int>(size) {}
-
-  virtual size_t dispatch(const int &v) { return v; }
 };
 
 #endif

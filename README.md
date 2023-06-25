@@ -7,5 +7,5 @@ Distributed pipeline execution engine based on async_simple
 
 # todo:
 * fork node
-* filter node
+* filter node [done]
 * black hole sink

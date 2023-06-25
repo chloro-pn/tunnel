@@ -12,7 +12,6 @@ template <typename T>
 class Sink : public Processor<T> {
  public:
   virtual async_simple::coro::Lazy<void> work() override {
-    Channel<T> &input = this->GetInputPort();
     while (true) {
       std::optional<T> value = co_await this->Pop();
       if (value.has_value()) {

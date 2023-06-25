@@ -19,7 +19,7 @@ class Filter : public Transform<T> {
       if (v.has_value()) {
         bool need_filter = filter(v.value());
         if (!need_filter) {
-          output.GetQueue().Push(std::move(v));
+          co_await output.GetQueue().Push(std::move(v));
         }
       } else {
         co_await output.GetQueue().Push(std::move(v));

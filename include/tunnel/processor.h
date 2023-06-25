@@ -40,7 +40,7 @@ class Processor {
       assert(input_count_ > 0);
       --input_count_;
       if (input_count_ == 0) {
-        co_await input_port.GetQueue().Push(value);
+        co_await input_port.GetQueue().Push(std::optional<T>{});
         co_return value;
       }
     }

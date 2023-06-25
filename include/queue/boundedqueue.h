@@ -3,7 +3,6 @@
 
 #include <concepts>
 #include <deque>
-#include <type_traits>
 
 #include "async_simple/coro/ConditionVariable.h"
 #include "async_simple/coro/Lazy.h"
@@ -45,7 +44,7 @@ class BoundedQueue {
   }
 
   template <typename T2>
-  requires std::is_convertible_v<T2, element_type> Lazy<void> Push(T2 &&element) {
+  Lazy<void> Push(T2 &&element) {
     auto lock = co_await mut_.coScopedLock();
     // 逻辑上来说不需要这个分支判断，但是这样处理可以避免
     // 一次co_await Lazy
@@ -57,7 +56,7 @@ class BoundedQueue {
   }
 
   template <typename T2>
-  requires std::is_convertible_v<T2, element_type> Lazy<bool> TryPush(T2 &&element) {
+  Lazy<bool> TryPush(T2 &&element) {
     auto lock = co_await mut_.coScopedLock();
     if (queue_.size() == Capacity()) {
       co_return false;
