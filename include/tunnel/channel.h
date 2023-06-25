@@ -9,7 +9,7 @@
 
 namespace tunnel {
 
-constexpr static size_t default_channel_size = 3;
+constexpr static size_t default_channel_size = 1;
 
 template <typename T>
 class Channel {

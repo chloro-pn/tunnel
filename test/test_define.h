@@ -28,14 +28,17 @@ class SinkTest : public Sink<int> {
 
 class SourceTest : public Source<int> {
  public:
+  explicit SourceTest(int initv = 0) : init_value(initv) {}
+
   virtual async_simple::coro::Lazy<std::optional<int>> generate() override {
     if (num < 100) {
       num = num + 1;
-      co_return num;
+      co_return num + init_value;
     }
     co_return std::optional<int>{};
   }
   int num = 0;
+  int init_value = 0;
 };
 
 #endif

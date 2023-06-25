@@ -13,9 +13,6 @@ template <typename T>
 class Dispatch : public Processor<T> {
  public:
   virtual async_simple::coro::Lazy<void> work() {
-    if (outputs_.size() != size_) {
-      throw std::runtime_error("dispatch size mismatch");
-    }
     while (true) {
       std::optional<T> v = co_await this->Pop();
       if (!v.has_value()) {

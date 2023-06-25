@@ -15,7 +15,6 @@ template <typename T>
 class SimpleTransform : public Transform<T> {
  public:
   virtual async_simple::coro::Lazy<void> work() override {
-    Channel<T> &input = this->GetInputPort();
     Channel<T> &output = this->GetOutputPort();
     while (true) {
       std::optional<T> v = co_await this->Pop();

@@ -101,3 +101,22 @@ TEST(TestPipeline, dispatch) {
     EXPECT_EQ(each, 20);
   }
 }
+
+TEST(TestPipeline, concat) {
+  Pipeline<int> pipeline;
+  uint64_t s1 = pipeline.AddSource(std::make_unique<SourceTest>(150));
+  uint64_t s2 = pipeline.AddSource(std::make_unique<SourceTest>(0));
+  uint64_t s3 = pipeline.AddSource(std::make_unique<SourceTest>(500));
+  pipeline.ConcatFor({s2, s1, s3});
+  auto sink = std::make_unique<SinkTest>();
+  std::vector<int> values;
+  sink->callback = [&](int v) { values.push_back(v); };
+  pipeline.SetSink(std::move(sink));
+  async_simple::executors::SimpleExecutor ex(2);
+  async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
+  int old_v = -1;
+  for (auto it = values.begin(); it != values.end(); ++it) {
+    EXPECT_TRUE(old_v < *it);
+    old_v = *it;
+  }
+}

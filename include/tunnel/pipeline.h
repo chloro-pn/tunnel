@@ -11,6 +11,7 @@
 
 #include "async_simple/Executor.h"
 #include "async_simple/coro/Collect.h"
+#include "tunnel/concat.h"
 #include "tunnel/dispatch.h"
 #include "tunnel/simple_transform.h"
 #include "tunnel/sink.h"
@@ -25,7 +26,7 @@ class Pipeline {
 
   uint64_t AddSource(std::unique_ptr<Source<T>>&& source) {
     uint64_t id = source->GetId();
-    node_check(id);
+    new_node_check(id);
     nodes_.insert({id, std::move(source)});
     leaves_.insert(id);
     return id;
@@ -33,10 +34,8 @@ class Pipeline {
 
   uint64_t AddTransform(uint64_t leaf_id, std::unique_ptr<Transform<T>>&& transform) {
     uint64_t trans_id = transform->GetId();
-    node_check(trans_id);
-    if (leaves_.find(leaf_id) == leaves_.end()) {
-      throw std::runtime_error("invalid leaf node for pipeline");
-    }
+    new_node_check(trans_id);
+    leaf_check(leaf_id);
     assert(nodes_.find(leaf_id) != nodes_.end());
     connect(*nodes_[leaf_id], *transform);
     leaves_.erase(leaf_id);
@@ -50,7 +49,7 @@ class Pipeline {
     for (auto& each : leaves_) {
       auto transform = creater();
       uint64_t new_id = transform->GetId();
-      node_check(new_id);
+      new_node_check(new_id);
       assert(nodes_.find(each) != nodes_.end());
       connect(*nodes_[each], *transform);
       new_leaves_.insert(new_id);
@@ -83,9 +82,7 @@ class Pipeline {
   }
 
   std::unordered_set<uint64_t> DispatchTo(uint64_t leaf, std::unique_ptr<Dispatch<T>>&& node) {
-    if (leaves_.find(leaf) == leaves_.end()) {
-      std::runtime_error("invalid leaf node id");
-    }
+    leaf_check(leaf);
     std::unordered_set<uint64_t> result;
     size_t new_size = node->GetSize();
     for (size_t i = 0; i < new_size; ++i) {
@@ -103,6 +100,19 @@ class Pipeline {
     uint64_t dispatch_id = node->GetId();
     nodes_.insert({dispatch_id, std::move(node)});
     return result;
+  }
+
+  uint64_t ConcatFor(const std::vector<uint64_t>& leaves) {
+    leaves_check(leaves);
+    auto concat_node = std::make_unique<Concat<T>>();
+    for (auto& each : leaves) {
+      connect(*nodes_[each], *concat_node);
+      leaves_.erase(each);
+    }
+    uint64_t id = concat_node->GetId();
+    leaves_.insert(id);
+    nodes_.insert({id, std::move(concat_node)});
+    return id;
   }
 
   Lazy<void> Run() && {
@@ -133,21 +143,37 @@ class Pipeline {
   std::unordered_map<uint64_t, std::unique_ptr<Processor<T>>> nodes_;
   std::unordered_set<uint64_t> leaves_;
 
-  void node_check(uint64_t id) {
+  void new_node_check(uint64_t id) {
     if (nodes_.find(id) != nodes_.end()) {
       throw std::runtime_error("add duplicate node to pipeline");
+    }
+  }
+
+  void leaf_check(uint64_t leaf_id) {
+    if (leaves_.find(leaf_id) == leaves_.end()) {
+      throw std::runtime_error("invalid leaf node for pipeline");
+    }
+  }
+
+  void leaves_check(const std::unordered_set<uint64_t>& leaves) {
+    for (auto& each : leaves) {
+      leaf_check(each);
+    }
+  }
+
+  void leaves_check(const std::vector<uint64_t>& leaves) {
+    for (auto& each : leaves) {
+      leaf_check(each);
     }
   }
 
   template <bool insert_to_leaves>
   uint64_t merge_to(std::unique_ptr<Processor<T>>&& node, const std::unordered_set<uint64_t>& leaves) {
     uint64_t id = node->GetId();
-    node_check(id);
+    new_node_check(id);
+    leaves_check(leaves);
     auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size);
     for (auto& each : leaves) {
-      if (leaves_.find(each) == leaves_.end()) {
-        throw std::runtime_error("invalid leaf id");
-      }
       connect(*nodes_[each], *node, queue);
       leaves_.erase(each);
     }
@@ -164,7 +190,7 @@ class Pipeline {
       throw std::runtime_error("can not merge for empty_leaves pipeline");
     }
     uint64_t id = node->GetId();
-    node_check(id);
+    new_node_check(id);
     auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size);
     for (auto& each : leaves_) {
       connect(*nodes_[each], *node, queue);
