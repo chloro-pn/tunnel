@@ -1,1 +1,1 @@
-build --cxxopt="-std=c++20" --define=ASYNC_SIMPLE_DISABLE_AIO=true
+build --define=ASYNC_SIMPLE_DISABLE_AIO=true

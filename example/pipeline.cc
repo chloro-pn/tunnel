@@ -1,18 +1,16 @@
 #include "tunnel/pipeline.h"
 
-#include "tunnel/dispatch.h"
-#include "tunnel/filter.h"
-#include "tunnel/simple_transform.h"
-#include "tunnel/sink.h"
-#include "tunnel/source.h"
-
-#define ASYNC_SIMPLE_HAS_NOT_AIO
 #include <functional>
 #include <iostream>
 
 #include "async_simple/Try.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "async_simple/executors/SimpleExecutor.h"
+#include "tunnel/dispatch.h"
+#include "tunnel/filter.h"
+#include "tunnel/simple_transform.h"
+#include "tunnel/sink.h"
+#include "tunnel/source.h"
 
 using namespace tunnel;
 

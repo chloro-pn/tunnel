@@ -1,0 +1,22 @@
+name: Windows
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build_with_bazel:
+    runs-on: windows-2019
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Build 
+        working-directory: ${{github.workspace}}
+        run: bazel build ...
+
+      - name: Test
+        working-directory: ${{github.workspace}}
+        run: bazel test --test_output=errors ...

@@ -1,0 +1,24 @@
+name: macosx
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build_with_bazel:
+    runs-on: macos-12
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build
+      # Build  all program
+      working-directory: ${{github.workspace}}
+      run: bazel build --define=ASYNC_SIMPLE_DISABLE_AIO=true ...
+
+    - name: Test
+      # Execute tests
+      working-directory: ${{github.workspace}}
+      run: bazel test --test_output=errors ...
