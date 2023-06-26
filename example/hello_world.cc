@@ -2,7 +2,6 @@
 #include <iostream>
 #include <string>
 
-#include "async_simple/Try.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "async_simple/executors/SimpleExecutor.h"
 #include "tunnel/pipeline.h"
@@ -31,7 +30,6 @@ class MySource : public Source<std::string> {
   bool eof = false;
 };
 
-// todo
 int main() {
   Pipeline<std::string> pipe;
   pipe.AddSource(std::make_unique<MySource>());
