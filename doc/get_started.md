@@ -54,3 +54,5 @@ int main() {
 ```
 
 最后，我们定义一个`Pipeline<std::string>`，通过`AddSource`和`SetSink`接口分别为pipeline设置`Source`和`Sink`节点，并通过`Run`接口启动它。这里使用`async_simple::coro::syncAwait`同步等待pipeline执行完毕，你将会在标准输出中看到`hello world`。
+
+代码请参考example/hello_world.cc
