@@ -49,7 +49,7 @@ cc_test(
 
 cc_binary(
   name = "hello_world",
-  srcs = glob(["hello_world/*.cc"]),
+  srcs = glob(["example/hello_world.cc"]),
   copts = TUNNEL_COPTS,
   deps = [
     ":tunnel",

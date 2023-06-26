@@ -36,3 +36,5 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 ## Doc
 请阅读doc目录和example目录学习本项目的api使用。
 
+## License
+本项目基于Apache License (Version 2.0) 协议。
