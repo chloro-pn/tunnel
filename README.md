@@ -35,8 +35,23 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 
 **注意**：本项目没有`Merge`节点，而是通过其他方法实现`Merge`功能，原因是`Merge`节点需要多个`input_port`，但是我们没有办法知道哪个`input_port`当前有数据到来，因此需要挂起等待某个`input_port`，这是不合理的。本项目通过共享多个`port`的队列来满足此功能，详情见`pipeline`的`Merge`接口。
 
+---
+节点类型的继承关系如下，标为红色的类型表示需要继承实现，标为蓝色的类型表示可以直接使用：
+![node_type](https://github.com/chloro-pn/draw_io_repo/blob/master/nodes.svg)
+
 ## Doc
 请阅读doc目录和example目录学习本项目的api使用。
+
+## Todo
+1. 支持更多类型的节点
+2. 支持Pipeline合并
+3. 拓扑检测
+4. 调度事件收集
+5. 支持中止执行
+6. 执行过程中的异常处理
+7. 支持运行时扩展Pipeline
+8. 支持分布式调度（首先需要支持基于coroutine的网络io）
+
 
 ## License
 本项目基于Apache License (Version 2.0) 协议。

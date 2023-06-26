@@ -16,16 +16,16 @@
 为叶节点leaf_id添加一个后置节点，返回值为该后置节点的id。
 
 * `std::unordered_set<uint64_t> AddTransform(const std::function<std::unique_ptr<Transform<T>>()>& creater)`
-为当前所有的叶节点分别添加一个后置节点，该后置节点通过create()获得，返回值为这些后置节点的id。
+为当前每个叶节点分别添加一个后置节点，该后置节点通过creater()获得，返回值为这些后置节点的id。
 
 * `uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink)`
-为当前所有的叶节点添加一个共享的后置Sink节点，即这些节点和Sink节点间使用的是同一条队列。
+为当前所有的叶节点添加一个共享的后置Sink节点，这些节点和Sink节点间使用的是同一条队列。
 
 * `uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink, const std::unordered_set<uint64_t>& leaves)`
-为leavs指定的叶节点添加一个共享的后置Sink节点，即这些节点和Sink节点间使用的是同一条队列。
+为leavs指定的叶节点添加一个共享的后置Sink节点，这些节点和Sink节点间使用的是同一条队列。
 
 * `uint64_t Merge(std::unique_ptr<Transform<T>>&& transform, const std::unordered_set<uint64_t>& leaves)`
-为leavs指定的叶节点添加一个共享的后置transform节点，这些节点和transform节点使用同一条队列，**注意**，这与`Concat`节点不同，`Concat`节点虽然也用来为多个叶节点添加一个共享的后置节点，但是这些节点与后置节点间的队列是独立的。
+为leavs指定的叶节点添加一个共享的后置transform节点，这些节点和transform节点使用同一条队列，**注意**，这与`Concat`节点不同，`Concat`节点虽然也用来为多个叶节点添加一个共享的后置节点，但是这些节点与后置节点间的队列是独立的。从这一点上来说，SetSink具有merge语义。
 
 * `uint64_t Merge(const std::unordered_set<uint64_t>& leaves)`
 同上，这个接口会生成一个NoOp节点来对leaves叶节点进行merge，返回值为NoOp节点的id。
