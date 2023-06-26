@@ -13,6 +13,7 @@
 #include "async_simple/coro/Collect.h"
 #include "tunnel/concat.h"
 #include "tunnel/dispatch.h"
+#include "tunnel/fork.h"
 #include "tunnel/simple_transform.h"
 #include "tunnel/sink.h"
 #include "tunnel/source.h"
@@ -81,7 +82,7 @@ class Pipeline {
     return merge<true>(std::move(no_op));
   }
 
-  std::unordered_set<uint64_t> DispatchTo(uint64_t leaf, std::unique_ptr<Dispatch<T>>&& node) {
+  std::unordered_set<uint64_t> DispatchFrom(uint64_t leaf, std::unique_ptr<Dispatch<T>>&& node) {
     leaf_check(leaf);
     std::unordered_set<uint64_t> result;
     size_t new_size = node->GetSize();
@@ -102,7 +103,7 @@ class Pipeline {
     return result;
   }
 
-  uint64_t ConcatFor(const std::vector<uint64_t>& leaves) {
+  uint64_t ConcatFrom(const std::vector<uint64_t>& leaves) {
     leaves_check(leaves);
     auto concat_node = std::make_unique<Concat<T>>();
     for (auto& each : leaves) {
@@ -113,6 +114,27 @@ class Pipeline {
     leaves_.insert(id);
     nodes_.insert({id, std::move(concat_node)});
     return id;
+  }
+
+  std::unordered_set<uint64_t> ForkFrom(uint64_t leaf, size_t size) {
+    leaf_check(leaf);
+    auto node = std::make_unique<Fork<T>>(size);
+    std::unordered_set<uint64_t> result;
+    for (size_t i = 0; i < size; ++i) {
+      auto no_op = std::make_unique<NoOpTransform<T>>();
+      connect(*node, *no_op);
+      uint64_t noop_id = no_op->GetId();
+      result.insert(noop_id);
+      nodes_.insert({noop_id, std::move(no_op)});
+    }
+    connect(*nodes_[leaf], *node);
+    leaves_.erase(leaf);
+    for (auto& each : result) {
+      leaves_.insert(each);
+    }
+    uint64_t fork_id = node->GetId();
+    nodes_.insert({fork_id, std::move(node)});
+    return result;
   }
 
   Lazy<void> Run() && {

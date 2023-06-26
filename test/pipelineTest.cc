@@ -1,9 +1,10 @@
+#include <functional>
+
 #include "gtest/gtest.h"
 #include "test_define.h"
-#include "tunnel/dump_sink.h"
 #include "tunnel/dispatch.h"
-
-#include <functional>
+#include "tunnel/dump_sink.h"
+#include "tunnel/fork.h"
 
 TEST(TestPipeline, basic) {
   Pipeline<int> pipeline;
@@ -80,7 +81,7 @@ public:
 TEST(TestPipeline, dispatch) {
   Pipeline<int> pipeline;
   uint64_t s1_id = pipeline.AddSource(std::make_unique<SourceTest>());
-  auto nodes = pipeline.DispatchTo(s1_id, std::make_unique<DispatchTest>(5));
+  auto nodes = pipeline.DispatchFrom(s1_id, std::make_unique<DispatchTest>(5));
   EXPECT_EQ(nodes.size(), 5);
   std::vector<size_t> counts(5, 0);
   size_t index = 0;
@@ -107,7 +108,7 @@ TEST(TestPipeline, concat) {
   uint64_t s1 = pipeline.AddSource(std::make_unique<SourceTest>(150));
   uint64_t s2 = pipeline.AddSource(std::make_unique<SourceTest>(0));
   uint64_t s3 = pipeline.AddSource(std::make_unique<SourceTest>(500));
-  pipeline.ConcatFor({s2, s1, s3});
+  pipeline.ConcatFrom({s2, s1, s3});
   auto sink = std::make_unique<SinkTest>();
   std::vector<int> values;
   sink->callback = [&](int v) { values.push_back(v); };
@@ -119,4 +120,17 @@ TEST(TestPipeline, concat) {
     EXPECT_TRUE(old_v < *it);
     old_v = *it;
   }
+}
+
+TEST(TestPipeline, channelfork) {
+  Pipeline<int> pipeline;
+  auto id = pipeline.AddSource(std::make_unique<SourceTest>());
+  pipeline.ForkFrom(id, 3);
+  auto sink = std::make_unique<SinkTest>();
+  int result = 0;
+  sink->callback = [&](int v) { result += v; };
+  pipeline.SetSink(std::move(sink));
+  async_simple::executors::SimpleExecutor ex(2);
+  async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
+  EXPECT_EQ(5050 * 3, result);
 }
