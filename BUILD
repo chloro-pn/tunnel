@@ -56,3 +56,13 @@ cc_binary(
     "@async_simple//:simple_executors",
   ],
 )
+
+cc_binary(
+  name = "number_handle",
+  srcs = glob(["example/number_handle.cc"]),
+  copts = TUNNEL_COPTS,
+  deps = [
+    ":tunnel",
+    "@async_simple//:simple_executors",
+  ],
+)
