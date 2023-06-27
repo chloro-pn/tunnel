@@ -72,8 +72,8 @@ class NumAccumulate : public Accumulate<int> {
   int tmp_sum = 0;
 };
 
-// You can find the structural diagram of the pipeline constructed by this instance 
-// in the file number_handle.md in this directory
+// You can find the structural diagram of the pipeline constructed by this example
+// in the file number_handle.md in the same directory
 int main() {
   Pipeline<int> pipeline;
   int result = 0;
