@@ -18,6 +18,7 @@
 #define TUNNEL_CONCAT_H
 
 #include <cassert>
+#include <string>
 
 #include "tunnel/channel.h"
 #include "tunnel/processor.h"
@@ -27,7 +28,7 @@ namespace tunnel {
 template <typename T>
 class Concat : public Processor<T> {
  public:
-  Concat() {}
+  explicit Concat(const std::string& name = "") : Processor<T>(name) {}
 
   /*
    * 由pipeline接口保证，concat的input不存在一写多读和多写一读的情况，因此不需要记录

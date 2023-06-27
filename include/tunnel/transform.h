@@ -18,6 +18,7 @@
 #define TUNNEL_TRANSFORM_H
 
 #include <stdexcept>
+#include <string>
 
 #include "tunnel/channel.h"
 #include "tunnel/processor.h"
@@ -25,7 +26,10 @@
 namespace tunnel {
 
 template <typename T>
-class Transform : public Processor<T> {};
+class Transform : public Processor<T> {
+ public:
+  explicit Transform(const std::string& name = "") : Processor<T>(name) {}
+};
 
 }  // namespace tunnel
 

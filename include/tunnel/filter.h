@@ -18,6 +18,7 @@
 #define TUNNEL_FILTER_H
 
 #include <optional>
+#include <string>
 
 #include "async_simple/coro/Lazy.h"
 #include "tunnel/channel.h"
@@ -28,6 +29,8 @@ namespace tunnel {
 template <typename T>
 class Filter : public Transform<T> {
  public:
+  explicit Filter(const std::string &name = "") : Transform<T>(name) {}
+
   virtual async_simple::coro::Lazy<void> work() {
     Channel<T> &output = this->GetOutputPort();
     while (true) {

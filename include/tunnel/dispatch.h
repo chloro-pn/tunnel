@@ -18,6 +18,7 @@
 #define TUNNEL_DISPATCH_H
 
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "tunnel/channel.h"
@@ -43,7 +44,7 @@ class Dispatch : public Processor<T> {
     }
   }
 
-  explicit Dispatch(size_t size) : size_(size) {}
+  explicit Dispatch(size_t size, const std::string& name = "") : Processor<T>(name), size_(size) {}
 
   void AddOutput(const Channel<T>& channel) {
     if (outputs_.size() < size_) {

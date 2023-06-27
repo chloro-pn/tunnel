@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
+#include <string>
 
 #include "async_simple/coro/Lazy.h"
 #include "tunnel/channel.h"
@@ -40,7 +41,8 @@ static uint64_t GenerateId() {
 template <typename T>
 class Processor {
  public:
-  Processor() : processor_id_(detail::GenerateId()), input_count_(0), output_count_(0) {}
+  explicit Processor(const std::string &name = "")
+      : processor_id_(detail::GenerateId()), name_(name), input_count_(0), output_count_(0) {}
 
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
 
@@ -84,8 +86,11 @@ class Processor {
 
   Channel<T> &GetOutputPort() { return output_port; }
 
+  const std::string &GetName() const { return name_; }
+
  private:
   uint64_t processor_id_;
+  std::string name_;
   Channel<T> input_port;
   Channel<T> output_port;
 

@@ -17,6 +17,8 @@
 #ifndef TUNNEL_EMPTY_SOURCE_H
 #define TUNNEL_EMPTY_SOURCE_H
 
+#include <string>
+
 #include "tunnel/source.h"
 
 namespace tunnel {
@@ -24,6 +26,8 @@ namespace tunnel {
 template <typename T>
 class EmptySource : public Source<T> {
  public:
+  explicit EmptySource(const std::string& name = "") : Source<T>(name) {}
+
   virtual async_simple::coro::Lazy<std::optional<T>> generate() override { co_return std::optional<T>{}; }
 };
 

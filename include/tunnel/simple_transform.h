@@ -20,6 +20,7 @@
 #include <cassert>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "async_simple/coro/Lazy.h"
 #include "tunnel/channel.h"
@@ -30,6 +31,8 @@ namespace tunnel {
 template <typename T>
 class SimpleTransform : public Transform<T> {
  public:
+  explicit SimpleTransform(const std::string &name = "") : Transform<T>(name) {}
+
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T> &output = this->GetOutputPort();
     while (true) {
@@ -50,6 +53,8 @@ class SimpleTransform : public Transform<T> {
 template <typename T>
 class NoOpTransform : public SimpleTransform<T> {
  public:
+  NoOpTransform() : SimpleTransform<T>("no_op") {}
+
   virtual async_simple::coro::Lazy<T> transform(T &&value) override { co_return std::move(value); }
 };
 

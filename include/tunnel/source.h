@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "tunnel/channel.h"
 #include "tunnel/processor.h"
@@ -28,6 +29,8 @@ namespace tunnel {
 template <typename T>
 class Source : public Processor<T> {
  public:
+  explicit Source(const std::string& name = "") : Processor<T>(name) {}
+
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T> &output = this->GetOutputPort();
     while (true) {

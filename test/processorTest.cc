@@ -20,9 +20,11 @@
 using namespace tunnel;
 
 TEST(ProcessorTest, basic) {
-  Processor<int> node;
-  Processor<int> node2;
+  Processor<int> node("test1");
+  Processor<int> node2("test2");
   EXPECT_NE(node.GetId(), node2.GetId());
+  EXPECT_EQ(node.GetName(), "test1");
+  EXPECT_EQ(node2.GetName(), "test2");
   connect(node, node2);
   EXPECT_THROW(node.work(), std::runtime_error);
   EXPECT_EQ(node2.GetInputPort(), true);

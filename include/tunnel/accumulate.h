@@ -17,6 +17,8 @@
 #ifndef TUNNEL_ACCUMULATE_H
 #define TUNNEL_ACCUMULATE_H
 
+#include <string>
+
 #include "async_simple/coro/Lazy.h"
 #include "tunnel/channel.h"
 #include "tunnel/transform.h"
@@ -26,6 +28,8 @@ namespace tunnel {
 template <typename T>
 class Accumulate : public Transform<T> {
  public:
+  explicit Accumulate(const std::string& name = "") : Transform<T>(name) {}
+
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& output = this->GetOutputPort();
     while (true) {

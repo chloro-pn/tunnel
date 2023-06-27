@@ -20,7 +20,9 @@
 #include <cassert>
 #include <functional>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -39,7 +41,7 @@ namespace tunnel {
 template <typename T>
 class Pipeline {
  public:
-  Pipeline() {}
+  explicit Pipeline(const std::string& name = "default") : name_(name) {}
 
   uint64_t AddSource(std::unique_ptr<Source<T>>&& source) {
     uint64_t id = source->GetId();
@@ -55,6 +57,7 @@ class Pipeline {
     leaf_check(leaf_id);
     assert(nodes_.find(leaf_id) != nodes_.end());
     connect(*nodes_[leaf_id], *transform);
+    add_edge(leaf_id, trans_id);
     leaves_.erase(leaf_id);
     leaves_.insert(trans_id);
     nodes_.insert({trans_id, std::move(transform)});
@@ -69,6 +72,7 @@ class Pipeline {
       new_node_check(new_id);
       assert(nodes_.find(each) != nodes_.end());
       connect(*nodes_[each], *transform);
+      add_edge(each, new_id);
       new_leaves_.insert(new_id);
       nodes_.insert({new_id, std::move(transform)});
     }
@@ -102,19 +106,21 @@ class Pipeline {
     leaf_check(leaf);
     std::unordered_set<uint64_t> result;
     size_t new_size = node->GetSize();
+    uint64_t dispatch_id = node->GetId();
     for (size_t i = 0; i < new_size; ++i) {
       auto no_op = std::make_unique<NoOpTransform<T>>();
       connect(*node, *no_op);
       uint64_t noop_id = no_op->GetId();
+      add_edge(dispatch_id, noop_id);
       result.insert(noop_id);
       nodes_.insert({noop_id, std::move(no_op)});
     }
     connect(*nodes_[leaf], *node);
+    add_edge(leaf, dispatch_id);
     leaves_.erase(leaf);
     for (auto& each : result) {
       leaves_.insert(each);
     }
-    uint64_t dispatch_id = node->GetId();
     nodes_.insert({dispatch_id, std::move(node)});
     return result;
   }
@@ -122,11 +128,12 @@ class Pipeline {
   uint64_t ConcatFrom(const std::vector<uint64_t>& leaves) {
     leaves_check(leaves);
     auto concat_node = std::make_unique<Concat<T>>();
+    uint64_t id = concat_node->GetId();
     for (auto& each : leaves) {
       connect(*nodes_[each], *concat_node);
+      add_edge(each, id);
       leaves_.erase(each);
     }
-    uint64_t id = concat_node->GetId();
     leaves_.insert(id);
     nodes_.insert({id, std::move(concat_node)});
     return id;
@@ -135,20 +142,22 @@ class Pipeline {
   std::unordered_set<uint64_t> ForkFrom(uint64_t leaf, size_t size) {
     leaf_check(leaf);
     auto node = std::make_unique<Fork<T>>(size);
+    uint64_t fork_id = node->GetId();
     std::unordered_set<uint64_t> result;
     for (size_t i = 0; i < size; ++i) {
       auto no_op = std::make_unique<NoOpTransform<T>>();
       connect(*node, *no_op);
       uint64_t noop_id = no_op->GetId();
+      add_edge(fork_id, noop_id);
       result.insert(noop_id);
       nodes_.insert({noop_id, std::move(no_op)});
     }
     connect(*nodes_[leaf], *node);
+    add_edge(leaf, fork_id);
     leaves_.erase(leaf);
     for (auto& each : result) {
       leaves_.insert(each);
     }
-    uint64_t fork_id = node->GetId();
     nodes_.insert({fork_id, std::move(node)});
     return result;
   }
@@ -177,9 +186,33 @@ class Pipeline {
     return leaves_;
   }
 
+  std::string Dump() const {
+    std::stringstream result;
+    result << "pipeline : " << name_ << "\n";
+    result << "node size : " << nodes_.size() << "\n";
+    for (auto& each : nodes_) {
+      auto edges = dags_.find(each.first);
+      result << each.first << " (" << each.second->GetName() << ") : ";
+      if (edges != dags_.end()) {
+        for (auto& to : edges->second) {
+          result << to << " ";
+        }
+        result << "\n";
+      } else {
+        result << "\n";
+      }
+    }
+    result << "the pipeline is " << (IsCompleted() ? "completed" : "incompleted") << "\n";
+    return result.str();
+  }
+
  private:
+  std::string name_;
   std::unordered_map<uint64_t, std::unique_ptr<Processor<T>>> nodes_;
   std::unordered_set<uint64_t> leaves_;
+  std::unordered_map<uint64_t, std::unordered_set<uint64_t>> dags_;
+
+  void add_edge(uint64_t from, uint64_t to) { dags_[from].insert(to); }
 
   void new_node_check(uint64_t id) {
     if (nodes_.find(id) != nodes_.end()) {
@@ -213,6 +246,7 @@ class Pipeline {
     auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size);
     for (auto& each : leaves) {
       connect(*nodes_[each], *node, queue);
+      add_edge(each, id);
       leaves_.erase(each);
     }
     nodes_.insert({id, std::move(node)});
@@ -232,6 +266,7 @@ class Pipeline {
     auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size);
     for (auto& each : leaves_) {
       connect(*nodes_[each], *node, queue);
+      add_edge(each, id);
     }
     leaves_.clear();
     nodes_.insert({id, std::move(node)});

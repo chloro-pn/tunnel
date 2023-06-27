@@ -19,6 +19,7 @@
 
 #include <cassert>
 #include <functional>
+#include <string>
 #include <vector>
 
 #include "tunnel/channel.h"
@@ -29,7 +30,8 @@ namespace tunnel {
 template <typename T>
 class Fork : public Processor<T> {
  public:
-  explicit Fork(size_t size) : size_(size), copy_([](const T& v) { return v; }) {}
+  explicit Fork(size_t size, const std::string& name = "")
+      : Processor<T>(name), size_(size), copy_([](const T& v) { return v; }) {}
 
   void AddOutput(const Channel<T>& channel) {
     if (outputs_.size() < size_) {
