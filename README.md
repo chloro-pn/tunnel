@@ -23,21 +23,23 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 
 以上是本项目中最基本的四个概念，接下来是一些派生概念：
 * `Source`：`Source`是一种`Processor`，它不具有`input_port`，是产生数据的节点。
+* `EmptySource`：`Source`是一种`Processor`，它只会产生一个EOF数据。
 * `Sink`：`Sink`是一种`Processor`，它不具有`output_port`，是消费数据的节点。
 * `DumpSimk`：`DumpSimk`是一种`Sink`，它读取并丢弃数据。
 * `TransForm`：`TransForm`是一种`Processor`，它的存在仅为了提供一种不同于`Source`和`Sink`的`Processor`类型。
 * `SimpleTransForm`：`SimpleTransForm`是一种`TransForm`，它只具有一个`input_port`和一个`output_port`，用于执行简单的转换，用户的大部分逻辑应该通过继承此类完成。
-* `NoOpTransform`：`NoOpTransform`是一种`SimpleTransForm`，它什么都不做，一般用作占位节点。
-* `Concat`：`Concat`是一种`Processor`，它具有一个或多个`input_port`和一个`output_port`，它总是按照顺序依次消费`input_port`并写入`output_port`。
-* `Dispatch`：`Dispatch`是一种`Processor`，它具有一个`input_port`和一个或多个`output_port`，它执行分流功能，即根据用户设置的逻辑将`input_port`分发给不同的`output_port`。
-* `Filter`：`Filter`是一种`TransForm`，它执行过滤功能，即根据用户设置的逻辑过滤掉`input_port`中的数据。
-* `Fork`：`Fork`是一种`Processor`，它具有一个`input_port`和一个或多个`output_port`，它执行复制功能，即将`input_port`中的数据复制给每个`output_port`。
+* `NoOpTransform`：`NoOpTransform`是一种`SimpleTransForm`，它具有占位功能。
+* `Concat`：`Concat`是一种`Processor`，它具有一个或多个`input_port`和一个`output_port`，它具有顺序消费功能。
+* `Dispatch`：`Dispatch`是一种`Processor`，它具有一个`input_port`和一个或多个`output_port`，它具有分流功能。
+* `Filter`：`Filter`是一种`TransForm`，它具有过滤功能。
+* `Accumulate`：`Accumulate`是一种`TransForm`，它具有累计功能。
+* `Fork`：`Fork`是一种`Processor`，它具有一个`input_port`和一个或多个`output_port`，它具有复制功能。
 
 **注意**：本项目没有`Merge`节点，而是通过其他方法实现`Merge`功能，原因是`Merge`节点需要多个`input_port`，但是我们没有办法知道哪个`input_port`当前有数据到来，因此需要挂起等待某个`input_port`，这是不合理的。本项目通过共享多个`port`的队列来满足此功能，详情见`pipeline`的`Merge`接口。
 
 ---
 节点类型的继承关系如下，标为红色的类型表示需要继承实现，标为蓝色的类型表示可以直接使用：
-![node_type](https://github.com/chloro-pn/draw_io_repo/blob/master/nodes.svg)
+![node_type](https://github.com/chloro-pn/draw_io_repo/blob/master/nodes.drawio.svg)
 
 ## Doc
 请阅读doc目录和example目录学习本项目的api使用。
