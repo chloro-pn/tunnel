@@ -1,8 +1,16 @@
 ![tunnel icon](https://github.com/chloro-pn/draw_io_repo/blob/master/tunnel.svg)
 ## Tunnel | [中文](./README_CN.md)
-Tunnel is a cross platform, lightweight, and highly adaptable task execution framework based on `C++20 coroutine`. You can use it to build task execution engines with complex dependencies, or pipeline execution engines.
-The idea of this project comes from the execution engine of `ClickHouse`. The difference is that this project can be easily integrated with other asynchronous systems or network io. For example, you can wait for an asynchronous operation from a third-party system during the execution process, or wait for socket reads and writes, without blocking threads.
-This project supports passing parameters between tasks, but a Pipeline only supports one parameter type. If you need to pass different types of data between different tasks, please use `std::any` or `void *`.
+Tunnel is a cross platform, lightweight, and highly adaptable task execution framework based on `C++20 coroutine`. You can use it to build task execution engines with complex dependencies, or pipeline execution engines.The idea of this project comes from the execution engine of `ClickHouse`. 
+
+This project has the following features:
+
+* The user's processing logic does not need to focus on scheduling, synchronization, or mutual exclusion. You only need to design a reasonable DAG structure to achieve the ability of **multi-core parallel execution**;
+
+* Thanks to the powerful customization capabilities of c++20 coroutine, you can **easily integrate with other asynchronous systems or network io** (which means that `tunnel` can be easily expanded into a distributed task execution framework, which is also one of the long-term goals of this project);
+
+* Thanks to async_simple with good design and interface, you can **control which Executor each node in the Pipeline is scheduled on**, which is beneficial for resource isolation and management;
+
+* Supports **passing parameters between nodes**, although each `Pipeline` only supports one parameter type. If you need to pass different types of data between different nodes, please use `std::any` or `void *` and perform runtime conversion;
 
 ## Compiler Requirement
 * This project is based on the c++20 standard.

@@ -1,8 +1,12 @@
 ![tunnel icon](https://github.com/chloro-pn/draw_io_repo/blob/master/tunnel.svg)
 ## Tunnel
-Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的任务执行框架，你可以用它构建具有复杂依赖关系的task执行引擎，或者pipeline执行引擎。
-本项目的思路来源于ClickHouse的执行引擎，不同点在于本项目可以方便的与其他异步系统或者网络io进行集成，例如你可以在执行过程中等待第三方系统的某个异步操作，或者等待socket读写，这一切都不会阻塞线程。
-本项目支持在task间传递参数，但是一个Pipeline只支持一种参数类型，如果您需要在不同的task间传递不同类型的数据，请使用std::any或者void*。
+Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的任务执行框架，你可以用它构建具有复杂依赖关系的task执行引擎，或者pipeline执行引擎。本项目的思路来源于ClickHouse的执行引擎。
+
+本项目有以下特点：
+* 用户的处理逻辑不需要关注调度、同步、互斥，你仅需要设计合理的DAG结构就可以获得多核并行执行的能力；
+* 得益于c++20 coroutine强大的定制能力，你可以方便的与其他异步系统或者网络io集成（这意味着tunnel可以比较容易的扩展为分布式任务执行框架，这也是本项目的长期目标之一）；
+* 得益于async_simple良好的设计与接口，你可以控制Pipeline中的任何节点在哪个Executor上调度，这有利于资源隔离和管理；
+* 支持在节点间传递参数，尽管每个Pipeline只支持一种参数类型，如果您需要在不同的节点间传递不同类型的数据，请使用std::any或者void*并执行运行时转换；
 
 ## Compiler Requirement
 * 本项目基于c++20标准。
