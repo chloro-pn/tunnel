@@ -172,7 +172,7 @@ class Pipeline {
       throw std::runtime_error("pipeline must be run with executor");
     }
     for (auto&& node : nodes_) {
-      lazies.emplace_back(std::move(node.second)->work().via(ex));
+      lazies.emplace_back(std::move(node.second)->work_with_exception().via(ex));
     }
     co_await async_simple::coro::collectAllPara(std::move(lazies));
     co_return;

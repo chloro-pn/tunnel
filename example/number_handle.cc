@@ -36,6 +36,7 @@ class NumSink : public Sink<int> {
   explicit NumSink(int& s, const std::string& name = "") : Sink<int>(name), sum(s) {}
 
   virtual Lazy<void> consume(int&& v) override {
+    throw std::runtime_error("error");
     sum += v;
     co_return;
   }

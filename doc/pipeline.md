@@ -56,3 +56,10 @@
 
 * `const std::unordered_set<uint64_t>& CurrentLeaves() const`
 返回pipeline当前的叶节点id。
+
+* `std::string Dump() const`
+dump当前pipeline的结构信息
+
+**NOTE** 
+注意目前Pipeline不支持节点抛出异常，如果这件事发生会导致调用`std::abort()`。原因是目前的协程调度模型下，某个节点抛出异常会导致一些节点被永久性的挂起而无法被回收。
+**design**: 当节点抛出异常时，节点不再执行用户逻辑，而是首先通知pipeline尽快结束调度（pipeline会通知所有source不再产生数据，而是立马产生一个eof并返回），然后进入挂机状态：挂机状态下首先向所有output_port发送eof，然后不断从input_port中读并丢弃数据直到读到eof，最后co_return。

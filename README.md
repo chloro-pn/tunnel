@@ -51,26 +51,21 @@ The above are the four most basic concepts in this project, followed by some der
 
 ---
 The inheritance relationship of node types is as follows. Types marked in **red** indicate the need for inheritance implementation, while types marked in **blue** indicate that they can be directly used：
+
+---
 ![node_type](https://github.com/chloro-pn/draw_io_repo/blob/master/nodes.drawio.svg)
 
 ## Doc
 Please read the doc directory and example directory to learn the API usage for this project.
 
 ## Todo
-1. Support for more types of nodes
-
+1. Support for more types of nodes [**doing**]
 2. Support Pipeline Merge
-
 3. Topology detection
-
 4. Schedule event collection
-
 5. Support active stop of execution
-
-6. Exception handling during execution
-
+6. Exception handling during execution [**doing**]
 7. Support for runtime extension of Pipeline
-
 8. Support for distributed scheduling (support for network io based on async_simple first)
 
 

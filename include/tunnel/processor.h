@@ -21,6 +21,8 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <cstdlib>
+#include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -45,6 +47,15 @@ class Processor {
       : processor_id_(detail::GenerateId()), name_(name), input_count_(0), output_count_(0) {}
 
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
+
+  async_simple::coro::Lazy<void> work_with_exception() {
+    async_simple::Try<void> result = co_await work().coAwaitTry();
+    if (result.hasError()) {
+      std::cerr << "node " << GetId() << " : " << GetName()
+                << " throw exception and abort, we can't handle exception now" << std::endl;
+      std::abort();
+    }
+  }
 
   // input可能是一写多读或者多写一读的，
   // 如果是多写一读，则需要等待所有写的eof；
