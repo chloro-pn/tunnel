@@ -53,6 +53,16 @@ class SimpleTransform : public Transform<T> {
 template <typename T>
 class NoOpTransform : public SimpleTransform<T> {
  public:
+  static std::unique_ptr<Processor<T>> MergeSinkAndSource(std::unique_ptr<Processor<T>> &&sink,
+                                                          std::unique_ptr<Processor<T>> &&source) {
+    auto no_op = std::make_unique<NoOpTransform<T>>();
+    no_op->input_count_ = sink->GetInputCount();
+    no_op->input_port = sink->GetInputPort();
+    no_op->output_count_ = source->GetOutputCount();
+    no_op->output_port = source->GetOutputPort();
+    return no_op;
+  }
+
   NoOpTransform() : SimpleTransform<T>("no_op") {}
 
   virtual async_simple::coro::Lazy<T> transform(T &&value) override { co_return std::move(value); }

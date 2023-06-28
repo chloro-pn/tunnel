@@ -60,7 +60,7 @@ Please read the doc directory and example directory to learn the API usage for t
 
 ## Todo
 1. Support for more types of nodes [**doing**]
-2. Support Pipeline Merge
+2. Support Pipeline Merge [**doing**]
 3. Topology detection
 4. Schedule event collection
 5. Support active stop of execution

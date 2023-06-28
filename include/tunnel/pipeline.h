@@ -39,8 +39,16 @@
 namespace tunnel {
 
 template <typename T>
+class Pipeline;
+
+template <typename T>
+Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right);
+
+template <typename T>
 class Pipeline {
  public:
+  friend Pipeline<T> MergePipeline<T>(Pipeline<T>&& left, Pipeline<T>&& right);
+
   explicit Pipeline(const std::string& name = "default") : name_(name) {}
 
   uint64_t AddSource(std::unique_ptr<Source<T>>&& source) {
@@ -48,6 +56,7 @@ class Pipeline {
     new_node_check(id);
     nodes_.insert({id, std::move(source)});
     leaves_.insert(id);
+    sources_.push_back(id);
     return id;
   }
 
@@ -80,10 +89,16 @@ class Pipeline {
     return new_leaves_;
   }
 
-  uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink) { return merge<false>(std::move(sink)); }
+  uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink) {
+    auto id = merge<false>(std::move(sink));
+    sinks_.push_back(id);
+    return id;
+  }
 
   uint64_t SetSink(std::unique_ptr<Sink<T>>&& sink, const std::unordered_set<uint64_t>& leaves) {
-    return merge_to<false>(std::move(sink), leaves);
+    auto id = merge_to<false>(std::move(sink), leaves);
+    sinks_.push_back(id);
+    return id;
   }
 
   uint64_t Merge(std::unique_ptr<Transform<T>>&& transform, const std::unordered_set<uint64_t>& leaves) {
@@ -182,9 +197,27 @@ class Pipeline {
     return leaves_.empty();
   }
 
+  size_t GetProcessorSize() const { return nodes_.size(); }
+
   const std::unordered_set<uint64_t>& CurrentLeaves() const {
     return leaves_;
   }
+
+  const std::vector<uint64_t>& GetSources() const { return sources_; }
+
+  bool IsSource(uint64_t id) const {
+    auto it = std::find(sources_.begin(), sources_.end(), id);
+    return it != sources_.end();
+  }
+
+  const std::vector<uint64_t>& GetSinks() const { return sinks_; }
+
+  bool IsSink(uint64_t id) const {
+    auto it = std::find(sinks_.begin(), sinks_.end(), id);
+    return it != sinks_.end();
+  }
+
+  const std::string& GetName() const { return name_; }
 
   std::string Dump() const {
     std::stringstream result;
@@ -211,6 +244,9 @@ class Pipeline {
   std::unordered_map<uint64_t, std::unique_ptr<Processor<T>>> nodes_;
   std::unordered_set<uint64_t> leaves_;
   std::unordered_map<uint64_t, std::unordered_set<uint64_t>> dags_;
+  // record sources and sinks in the order of registration to support the merge of pipelines.
+  std::vector<uint64_t> sources_;
+  std::vector<uint64_t> sinks_;
 
   void add_edge(uint64_t from, uint64_t to) { dags_[from].insert(to); }
 
@@ -276,6 +312,96 @@ class Pipeline {
     return id;
   }
 };
+
+// these helper functions are used to pipeline merge
+namespace detail {
+inline void ReplaceSinkIdInDags(std::unordered_map<uint64_t, std::unordered_set<uint64_t>>& dags,
+                                const std::vector<uint64_t>& old_sink_id, const std::vector<uint64_t>& new_id) {
+  assert(old_sink_id.size() == new_id.size());
+  for (size_t i = 0; i < old_sink_id.size(); ++i) {
+    for (auto& each : dags) {
+      if (each.second.find(old_sink_id[i]) != each.second.end()) {
+        each.second.erase(old_sink_id[i]);
+        each.second.insert(new_id[i]);
+      }
+    }
+  }
+}
+
+inline void ReplaceSourceIdInDags(std::unordered_map<uint64_t, std::unordered_set<uint64_t>>& dags,
+                                  const std::vector<uint64_t>& old_source_id, const std::vector<uint64_t>& new_id) {
+  std::unordered_map<uint64_t, std::unordered_set<uint64_t>> add_dag;
+  for (size_t i = 0; i < old_source_id.size(); ++i) {
+    auto each = dags.begin();
+    while (each != dags.end()) {
+      if (each->first == old_source_id[i]) {
+        add_dag.insert({new_id[i], std::move(each->second)});
+        each = dags.erase(each);
+      } else {
+        ++each;
+      }
+    }
+    for (auto&& each : add_dag) {
+      dags.insert(std::move(each));
+    }
+  }
+}
+}  // namespace detail
+
+template <typename T>
+Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right) {
+  if (!left.IsCompleted() || !right.IsCompleted()) {
+    throw std::runtime_error("can only merge two completed pipeline");
+  }
+  if (left.GetProcessorSize() == 0) {
+    return std::move(right);
+  }
+  if (right.GetProcessorSize() == 0) {
+    return std::move(left);
+  }
+  if (left.GetSinks().size() != right.GetSources().size()) {
+    throw std::runtime_error("the number of sources and sinks in the merged pipeline is not equal");
+  }
+  std::vector<std::unique_ptr<Processor<T>>> noops;
+  for (size_t i = 0; i < left.GetSinks().size(); ++i) {
+    auto sink = std::move(left.nodes_[left.sinks_[i]]);
+    auto source = std::move(right.nodes_[right.sources_[i]]);
+    auto no_op = NoOpTransform<T>::MergeSinkAndSource(std::move(sink), std::move(source));
+    noops.emplace_back(std::move(no_op));
+  }
+  Pipeline<T> new_pipeline;
+  new_pipeline.name_ = left.name_ + "-merge-" + right.name_;
+  for (auto&& left_node : left.nodes_) {
+    if (!left.IsSink(left_node.first)) {
+      new_pipeline.nodes_.insert(std::move(left_node));
+    }
+  }
+  for (auto&& right_node : right.nodes_) {
+    if (!right.IsSource(right_node.first)) {
+      new_pipeline.nodes_.insert(std::move(right_node));
+    }
+  }
+  // used for merge dags
+  std::vector<uint64_t> noop_ids;
+  for (auto&& noop_node : noops) {
+    uint64_t id = noop_node->GetId();
+    noop_ids.push_back(id);
+    new_pipeline.nodes_.insert({id, std::move(noop_node)});
+  }
+  // alse completed
+  new_pipeline.leaves_ = {};
+  // merge dags
+  detail::ReplaceSinkIdInDags(left.dags_, left.sinks_, noop_ids);
+  detail::ReplaceSourceIdInDags(right.dags_, right.sources_, noop_ids);
+  new_pipeline.dags_ = std::move(left.dags_);
+  for (auto&& each : right.dags_) {
+    new_pipeline.dags_.insert(std::move(each));
+  }
+  // merge sources and sinks
+  new_pipeline.sources_ = left.sources_;
+  new_pipeline.sinks_ = right.sinks_;
+  return new_pipeline;
+}
 
 }  // namespace tunnel
 

@@ -89,6 +89,10 @@ class Processor {
 
   uint64_t &GetId() noexcept { return processor_id_; }
 
+  size_t GetInputCount() const { return input_count_; }
+
+  size_t GetOutputCount() const { return output_count_; }
+
   const Channel<T> &GetInputPort() const { return input_port; }
 
   Channel<T> &GetInputPort() { return input_port; }
@@ -102,10 +106,10 @@ class Processor {
  private:
   uint64_t processor_id_;
   std::string name_;
-  Channel<T> input_port;
-  Channel<T> output_port;
 
  protected:
+  Channel<T> input_port;
+  Channel<T> output_port;
   size_t input_count_;
   size_t output_count_;
 };

@@ -21,6 +21,7 @@
 #include "tunnel/dispatch.h"
 #include "tunnel/dump_sink.h"
 #include "tunnel/fork.h"
+#include "tunnel/pipeline.h"
 
 TEST(TestPipeline, basic) {
   Pipeline<int> pipeline;
@@ -28,11 +29,14 @@ TEST(TestPipeline, basic) {
   for(int i = 0; i < 3; ++i) {
     pipeline.AddSource(std::make_unique<SourceTest>());
     EXPECT_EQ(pipeline.IsCompleted(), false);
+    EXPECT_EQ(pipeline.GetSources().size(), i + 1);
+    EXPECT_EQ(pipeline.GetSinks().size(), 0);
   }
   auto sink = std::make_unique<SinkTest>();
   int result = 0;
   sink->callback = [&](int v) { result += v; };
   pipeline.SetSink(std::move(sink));
+  EXPECT_EQ(pipeline.GetSinks().size(), 1);
   async_simple::executors::SimpleExecutor ex(2);
   async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   EXPECT_EQ(5050 * 3, result);
@@ -149,4 +153,21 @@ TEST(TestPipeline, channelfork) {
   async_simple::executors::SimpleExecutor ex(2);
   async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   EXPECT_EQ(5050 * 3, result);
+}
+
+TEST(TestPipeline, pipelineMerge) {
+  Pipeline<int> p1("pipe1");
+  auto s1 = p1.AddSource(std::make_unique<SourceTest>(0, "s1"));
+  auto s12 = p1.AddSource(std::make_unique<SourceTest>(0, "s12"));
+  auto sink1 = p1.SetSink(std::make_unique<SinkTest>("sink1"));
+  Pipeline<int> p2("pipe2");
+  auto s2 = p2.AddSource(std::make_unique<SourceTest>(0, "s2"));
+  auto sink2 = p2.SetSink(std::make_unique<SinkTest>("sink2"));
+  Pipeline<int> merge_pipe = MergePipeline<int>(std::move(p1), std::move(p2));
+  EXPECT_EQ(merge_pipe.GetName(), "pipe1-merge-pipe2");
+  EXPECT_TRUE(merge_pipe.IsSource(s1));
+  EXPECT_TRUE(merge_pipe.IsSource(s12));
+  EXPECT_FALSE(merge_pipe.IsSource(s2));
+  EXPECT_TRUE(merge_pipe.IsSink(sink2));
+  EXPECT_FALSE(merge_pipe.IsSink(sink1));
 }

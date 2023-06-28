@@ -32,6 +32,8 @@ using namespace tunnel;
 
 class SinkTest : public Sink<int> {
  public:
+  explicit SinkTest(const std::string& name = "") : Sink<int>(name) {}
+
   virtual async_simple::coro::Lazy<void> consume(int &&value) override {
     if (callback) {
       callback(value);
@@ -44,7 +46,7 @@ class SinkTest : public Sink<int> {
 
 class SourceTest : public Source<int> {
  public:
-  explicit SourceTest(int initv = 0) : init_value(initv) {}
+  explicit SourceTest(int initv = 0, const std::string& name = "") : Source<int>(name), init_value(initv) {}
 
   virtual async_simple::coro::Lazy<std::optional<int>> generate() override {
     if (num < 100) {
