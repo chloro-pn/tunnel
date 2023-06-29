@@ -44,6 +44,16 @@ class SinkTest : public Sink<int> {
   std::function<void(int)> callback;
 };
 
+class ThrowSinkTest : public Sink<int> {
+ public:
+  explicit ThrowSinkTest(const std::string& name = "") : Sink<int>(name) {}
+
+  virtual async_simple::coro::Lazy<void> consume(int&& value) override {
+    throw std::runtime_error("throw sink test");
+    co_return;
+  }
+};
+
 class SourceTest : public Source<int> {
  public:
   explicit SourceTest(int initv = 0, const std::string& name = "") : Source<int>(name), init_value(initv) {}

@@ -177,22 +177,22 @@ class Pipeline {
     return result;
   }
 
-  Lazy<void> Run() && {
+  Lazy<std::vector<async_simple::Try<void>>> Run() && {
     if (leaves_.empty() == false) {
-      throw std::runtime_error("try to run incomplete pipeline");
+      throw std::runtime_error("try to run incompleted pipeline");
     }
     std::vector<async_simple::coro::RescheduleLazy<void>> lazies;
     async_simple::Executor* ex = co_await async_simple::CurrentExecutor{};
     if (ex == nullptr) {
-      throw std::runtime_error("pipeline must be run with executor");
+      throw std::runtime_error("pipeline can not run without executor");
     }
     Channel<int> abort_channel(10);
     for (auto&& node : nodes_) {
       node.second->BindAbortChannel(abort_channel);
       lazies.emplace_back(std::move(node.second)->work_with_exception().via(ex));
     }
-    co_await async_simple::coro::collectAllPara(std::move(lazies));
-    co_return;
+    auto results = co_await async_simple::coro::collectAllPara(std::move(lazies));
+    co_return results;
   }
 
   bool IsCompleted() const {

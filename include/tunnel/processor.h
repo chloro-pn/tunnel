@@ -42,11 +42,13 @@ static uint64_t GenerateId() {
 }
 }  // namespace detail
 
+constexpr size_t max_yeild_count = 10;
+
 template <typename T>
 class Processor {
  public:
   explicit Processor(const std::string &name = "")
-      : processor_id_(detail::GenerateId()), name_(name), input_count_(0) {}
+      : processor_id_(detail::GenerateId()), name_(name), input_count_(0), yield_count_(0) {}
 
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
 
@@ -61,6 +63,7 @@ class Processor {
       }
       // We only need to try push because there may be other nodes also writing
       co_await abort_port.GetQueue().TryPush(0);
+      std::rethrow_exception(result.getException());
     }
     co_return;
   }
@@ -75,6 +78,7 @@ class Processor {
         while (true) {
           async_simple::Try<std::optional<T>> v = co_await input.GetQueue().TryPop();
           if (v.available()) {
+            yield_count_ = 0;
             value = std::move(v).value();
             break;
           } else {
@@ -82,7 +86,12 @@ class Processor {
             if (v.available()) {
               throw std::runtime_error("throw by abort channel");
             }
-            co_await async_simple::coro::sleep(std::chrono::milliseconds(20));
+            if (yield_count_ < max_yeild_count) {
+              ++yield_count_;
+              co_await async_simple::coro::Yield{};
+            } else {
+              co_await async_simple::coro::sleep(std::chrono::milliseconds(20));
+            }
           }
         }
       } else {
@@ -105,13 +114,19 @@ class Processor {
       while (true) {
         bool succ = co_await output.GetQueue().TryPush(std::move(v));
         if (succ == true) {
+          yield_count_ = 0;
           co_return;
         }
         async_simple::Try<std::optional<int>> v = co_await abort_port.GetQueue().TryPop();
         if (v.available()) {
           throw std::runtime_error("throw by abort channel");
         }
-        co_await async_simple::coro::sleep(std::chrono::milliseconds(20));
+        if (yield_count_ < max_yeild_count) {
+          ++yield_count_;
+          co_await async_simple::coro::Yield{};
+        } else {
+          co_await async_simple::coro::sleep(std::chrono::milliseconds(20));
+        }
       }
     } else {
       co_await output.GetQueue().Push(std::move(v));
@@ -154,14 +169,14 @@ class Processor {
   // This is a channel used to abort execution, set by the pipeline for each node before scheduling.
   // All nodes share the same abort channel. When a node throws an exception, the tunnel will catch the
   // exception and write data to the abort channel before exiting. In addition, all nodes need to wait
-  // on both user logic and abort channel through `collectAny` during co_await. If data is returned due to
-  // abort channel read something, we should co_return immediately.
+  // on both user logic and abort channel. If abort channel read something, we should co_return immediately.
   Channel<int> abort_port;
 
  protected:
   Channel<T> input_port;
   Channel<T> output_port;
   size_t input_count_;
+  size_t yield_count_;
 };
 
 template <typename T>

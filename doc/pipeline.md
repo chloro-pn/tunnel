@@ -49,8 +49,8 @@
 这个接口首先为leaf叶节点添加一个`Fork`后置节点，然后为`Fork`节点生成size个`output_port`，并为每个`output_port`添加一个NoOp节点，返回值为这些NoOp节点的id。
 `Fork`节点用来执行复制，它会将读取的数据复制并传递给每个`output_port`。
 
-* `Lazy<void> Run() &&`
-启动pipeline。
+* `Lazy<std::vector<async_simple::Try<void>>> Run() &&`
+启动pipeline并阻塞等待，返回值为每个节点的执行结果，如果是抛出异常返回，则`Try<void>`中会记录该异常。
 
 * `bool IsCompleted() const`
 返回pipeline是否是完整的。（我们将没有叶节点的pipeline称为完整的）
@@ -59,7 +59,7 @@
 返回pipeline当前的叶节点id。
 
 * `std::string Dump() const`
-dump当前pipeline的结构信息
+dump当前pipeline的结构信息。
 
 **about exception** 
 

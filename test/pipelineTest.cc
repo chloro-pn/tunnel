@@ -151,8 +151,11 @@ TEST(TestPipeline, channelfork) {
   sink->callback = [&](int v) { result += v; };
   pipeline.SetSink(std::move(sink));
   async_simple::executors::SimpleExecutor ex(2);
-  async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
+  auto node_results = async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   EXPECT_EQ(5050 * 3, result);
+  for (auto& each : node_results) {
+    EXPECT_EQ(each.hasError(), false);
+  }
 }
 
 TEST(TestPipeline, pipelineMerge) {
@@ -170,4 +173,24 @@ TEST(TestPipeline, pipelineMerge) {
   EXPECT_FALSE(merge_pipe.IsSource(s2));
   EXPECT_TRUE(merge_pipe.IsSink(sink2));
   EXPECT_FALSE(merge_pipe.IsSink(sink1));
+}
+
+TEST(TestPipeline, throwException) {
+  async_simple::executors::SimpleExecutor ex(2);
+  Pipeline<int> pipeline;
+  auto s1 = pipeline.AddSource(std::make_unique<SourceTest>());
+  pipeline.AddTransform(s1, std::make_unique<TransformTest>());
+  pipeline.SetSink(std::make_unique<ThrowSinkTest>());
+  auto results = async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
+  for (auto& each : results) {
+    if (each.hasError()) {
+      std::string result;
+      try {
+        std::rethrow_exception(each.getException());
+      } catch (const std::exception& e) {
+        result = e.what();
+      }
+      EXPECT_TRUE(result == "throw sink test" || result == "throw by abort channel");
+    }
+  }
 }
