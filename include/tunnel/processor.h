@@ -44,6 +44,15 @@ static uint64_t GenerateId() {
 
 constexpr size_t max_yeild_count = 10;
 
+/*
+ * Processor is the basic scheduling unit in the pipeline. Each instance of Processor
+ * will be assigned a unique ID. In addition, users can specify a name for it to
+ * facilitate identifying different Processors when print pipeline's structure information.
+ *
+ * a Processor holds an abort_channel, which is shared by all Processors on the same pipeline.
+ * When the Processor exits early due to catch an exception, it notifies other Processor to exit as soon as possible
+ * through the abort_channel.
+ */
 template <typename T>
 class Processor {
  public:
@@ -52,6 +61,7 @@ class Processor {
 
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
 
+  // co_await work() and handle exception
   async_simple::coro::Lazy<void> work_with_exception() {
     async_simple::Try<void> result = co_await work().coAwaitTry();
     if (result.hasError()) {
@@ -61,16 +71,16 @@ class Processor {
                   << std::endl;
         std::abort();
       }
-      // We only need to try push because there may be other nodes also writing
+      // We only need TryPush to notify the exit information
       co_await abort_port.GetQueue().TryPush(0);
       std::rethrow_exception(result.getException());
     }
     co_return;
   }
 
-  // input可能是一写多读或者多写一读的，
-  // 如果是多写一读，则需要等待所有写的eof；
-  // 如果是一写多读，则需要保证其他读也读到eof；
+  // Attempt to read data from input, and if it fails, attempt to read data from abort_channel.
+  // Use co_await Yield{} to schedule out for the first yield_count_ of failed reads.
+  // If the yield_count_ exceeds the limit, use co_await sleep to schedule out.
   async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
     while (true) {
       std::optional<T> value;
@@ -166,15 +176,17 @@ class Processor {
  private:
   uint64_t processor_id_;
   std::string name_;
-  // This is a channel used to abort execution, set by the pipeline for each node before scheduling.
-  // All nodes share the same abort channel. When a node throws an exception, the tunnel will catch the
-  // exception and write data to the abort channel before exiting. In addition, all nodes need to wait
-  // on both user logic and abort channel. If abort channel read something, we should co_return immediately.
+  // This is a channel used to abort execution, set by the pipeline for each Processor before scheduling.
+  // All nodes share the same abort_channel. When the Processor throws an exception, the tunnel will catch the
+  // exception and notify other Processors. If we read some data from abort_channel, we should co_return as soon as
+  // possible.
   Channel<int> abort_port;
 
  protected:
   Channel<T> input_port;
   Channel<T> output_port;
+  // input_channel will be written by input_count_ Processors, so it needs to read input_count_ EOF information to
+  // complete the reading.
   size_t input_count_;
   size_t yield_count_;
 };

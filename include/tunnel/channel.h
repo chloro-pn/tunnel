@@ -27,6 +27,8 @@ namespace tunnel {
 
 constexpr static size_t default_channel_size = 1;
 
+// Channel is the encapsulation of BoundedQueue, and multiple channels can share the same BoundedQueue.
+// A Processor can hold multiple channels, which are classified as input and output types.
 template <typename T>
 class Channel {
  public:

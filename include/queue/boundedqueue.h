@@ -30,6 +30,10 @@ using async_simple::Try;
 using async_simple::coro::ConditionVariable;
 using async_simple::coro::Lazy;
 
+/*
+ * BoundedQueue is a Thread safety bounded queue through which multiple Processors can transfer information.
+ * It does not block threads and suspends coroutines when necessary.
+ */
 template <typename T, class Lock = async_simple::coro::Mutex>
 class BoundedQueue {
  public:
@@ -62,8 +66,6 @@ class BoundedQueue {
   template <typename T2>
   Lazy<void> Push(T2 &&element) {
     auto lock = co_await mut_.coScopedLock();
-    // 逻辑上来说不需要这个分支判断，但是这样处理可以避免
-    // 一次co_await Lazy
     if (queue_.size() == this->Capacity()) {
       co_await filled_cv_.wait(mut_, [&]() { return this->queue_.size() < this->Capacity(); });
     }
