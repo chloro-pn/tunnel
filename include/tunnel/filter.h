@@ -32,16 +32,17 @@ class Filter : public Transform<T> {
   explicit Filter(const std::string &name = "") : Transform<T>(name) {}
 
   virtual async_simple::coro::Lazy<void> work() {
+    Channel<T> &input = this->GetInputPort();
     Channel<T> &output = this->GetOutputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop();
+      std::optional<T> v = co_await this->Pop(input, this->input_count_);
       if (v.has_value()) {
         bool need_filter = filter(v.value());
         if (!need_filter) {
-          co_await output.GetQueue().Push(std::move(v));
+          co_await this->Push(std::move(v), output);
         }
       } else {
-        co_await output.GetQueue().Push(std::move(v));
+        co_await this->Push(std::move(v), output);
         co_return;
       }
     }

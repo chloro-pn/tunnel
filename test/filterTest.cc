@@ -17,6 +17,7 @@
 #include "gtest/gtest.h"
 #include "test_define.h"
 #include "tunnel/filter.h"
+#include "tunnel/pipeline.h"
 
 using namespace tunnel;
 

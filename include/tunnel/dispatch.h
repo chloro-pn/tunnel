@@ -30,16 +30,18 @@ template <typename T>
 class Dispatch : public Processor<T> {
  public:
   virtual async_simple::coro::Lazy<void> work() {
+    Channel<T>& input = this->GetInputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop();
+      std::optional<T> v = co_await this->Pop(input, this->input_count_);
       if (!v.has_value()) {
         for (auto it = outputs_.begin(); it != outputs_.end(); ++it) {
-          co_await (*it).GetQueue().Push(std::optional<T>{});
+          Channel<T>& output = (*it);
+          co_await this->Push(std::optional<T>{}, output);
         }
         co_return;
       } else {
         size_t output_index = dispatch(v.value()) % outputs_.size();
-        co_await outputs_[output_index].GetQueue().Push(std::move(v));
+        co_await this->Push(std::move(v), outputs_[output_index]);
       }
     }
   }

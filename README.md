@@ -65,8 +65,9 @@ Please read the doc directory and example directory to learn the API usage for t
 4. Schedule event collection
 5. Support active stop of execution
 6. Exception handling during execution [**doing**]
-7. Support for runtime extension of Pipeline
-8. Support for distributed scheduling (support for network io based on async_simple first)
+7. Implementing a high-performance Executor
+8. Support for runtime extension of Pipeline
+9. Support for distributed scheduling (support for network io based on async_simple first)
 
 
 ## License

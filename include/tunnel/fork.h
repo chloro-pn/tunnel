@@ -43,20 +43,22 @@ class Fork : public Processor<T> {
 
   virtual async_simple::coro::Lazy<void> work() override {
     assert(outputs_.size() > 0);
+    Channel<T>& input = this->GetInputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop();
+      std::optional<T> v = co_await this->Pop(input, this->input_count_);
       if (!v.has_value()) {
         for (auto it = outputs_.begin(); it != outputs_.end(); ++it) {
-          co_await (*it).GetQueue().Push(std::optional<T>{});
+          Channel<T>& output = (*it);
+          co_await this->Push(std::optional<T>{}, output);
         }
         co_return;
       } else {
         for (size_t index = 0; index < outputs_.size(); ++index) {
           if (index == outputs_.size() - 1) {
-            co_await outputs_[index].GetQueue().Push(std::move(v));
+            co_await this->Push(std::move(v), outputs_[index]);
           } else {
             T new_v = copy_(v.value());
-            co_await outputs_[index].GetQueue().Push(std::move(new_v));
+            co_await this->Push(std::move(new_v), outputs_[index]);
           }
         }
       }

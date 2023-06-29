@@ -186,7 +186,9 @@ class Pipeline {
     if (ex == nullptr) {
       throw std::runtime_error("pipeline must be run with executor");
     }
+    Channel<int> abort_channel(10);
     for (auto&& node : nodes_) {
+      node.second->BindAbortChannel(abort_channel);
       lazies.emplace_back(std::move(node.second)->work_with_exception().via(ex));
     }
     co_await async_simple::coro::collectAllPara(std::move(lazies));

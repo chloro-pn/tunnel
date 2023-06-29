@@ -55,8 +55,9 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 4. 调度事件收集
 5. 支持中止执行
 6. 执行过程中的异常处理 [**doing**]
-7. 支持运行时扩展Pipeline
-8. 支持分布式调度（首先需要支持基于coroutine的网络io）
+7. 实现一个高性能的Executor
+8. 支持运行时扩展Pipeline
+9. 支持分布式调度（首先需要支持基于coroutine的网络io）
 
 
 ## License

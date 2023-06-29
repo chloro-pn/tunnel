@@ -6,7 +6,8 @@
 * `Pipeline`在调度前需要对`Processor`节点进行拓扑检测，确保没有环、没有孤立节点等。（TODO）
 * `Processor`会记录调度过程中的大部分事件，包括每个`Processor`节点什么时刻被挂起、什么时刻被回复、从`input_port`读了多少次、写`output_port`多少次等等，这些信息有助于排查问题和性能分析。（TODO）
 * `Pipeline`的接口只允许为当前还没有设置`output_port`的节点（本库称之为叶节点，特别的，Sink节点虽然没有`output_port`节点，但它不属于叶节点）添加后置节点。（如果称节点B是节点A的后置节点，则意味着节点A的一个`output_port`和节点B的一个`input_port`连通）
-* 叶节点数量为0的`Pipeline`才可以被调度。
+* 叶节点数量为0的`Pipeline`才可以被调度，这样的`Pipeline`被称为完整的。
+* 两个完整的`Pipeline`可以通过`MergePipeline`合并为一个`Pipeline`，第一个`Pipeline`的`Sink`节点数量需要和第二个`Pipeline`的`Source`节点数量需要相同，合并后这些`Sink`和`Source`节点会两两合并为一个`NoOpTransform`节点。
 
 #### interface
 * `uint64_t AddSource(std::unique_ptr<Source<T>>&& source)`
@@ -60,6 +61,8 @@
 * `std::string Dump() const`
 dump当前pipeline的结构信息
 
-**NOTE** 
-注意目前Pipeline不支持节点抛出异常，如果这件事发生会导致调用`std::abort()`。原因是目前的协程调度模型下，某个节点抛出异常会导致一些节点被永久性的挂起而无法被回收。
-**design**: 当节点抛出异常时，节点不再执行用户逻辑，而是首先通知pipeline尽快结束调度（pipeline会通知所有source不再产生数据，而是立马产生一个eof并返回），然后进入挂机状态：挂机状态下首先向所有output_port发送eof，然后不断从input_port中读并丢弃数据直到读到eof，最后co_return。
+**about exception** 
+
+Pipeline支持节点抛出异常，即便在多线程条件下两个节点同时抛出异常。
+
+ 当节点抛出异常时，首先根据async_simple的异常传递机制，该异常会被实际调度的底层协程捕获，然后该节点会通过一个特别的`abort_channel`将这个消息通知给其他所有节点，每个节点在收到`abort_channel`发送的消息后执行清理工作并尽快退出。最后Pipeline等待所有工作节点退出后Run函数返回。

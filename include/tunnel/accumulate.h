@@ -31,15 +31,16 @@ class Accumulate : public Transform<T> {
   explicit Accumulate(const std::string& name = "") : Transform<T>(name) {}
 
   virtual async_simple::coro::Lazy<void> work() override {
+    Channel<T>& input = this->GetInputPort();
     Channel<T>& output = this->GetOutputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop();
+      std::optional<T> v = co_await this->Pop(input, this->input_count_);
       if (v.has_value()) {
         co_await consume(std::move(v).value());
       } else {
         T v = co_await generate();
-        co_await output.GetQueue().Push(std::move(v));
-        co_await output.GetQueue().Push(std::optional<T>{});
+        co_await this->Push(std::move(v), output);
+        co_await this->Push(std::move(std::optional<T>{}), output);
         co_return;
       }
     }

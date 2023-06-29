@@ -36,7 +36,7 @@ class Source : public Processor<T> {
     while (true) {
       std::optional<T> v = co_await generate();
       bool read_eof = !v.has_value();
-      co_await output.GetQueue().Push(std::move(v));
+      co_await this->Push(std::move(v), output);
       if (read_eof) {
         co_return;
       }

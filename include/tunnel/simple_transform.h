@@ -34,14 +34,15 @@ class SimpleTransform : public Transform<T> {
   explicit SimpleTransform(const std::string &name = "") : Transform<T>(name) {}
 
   virtual async_simple::coro::Lazy<void> work() override {
+    Channel<T> &input = this->GetInputPort();
     Channel<T> &output = this->GetOutputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop();
+      std::optional<T> v = co_await this->Pop(input, this->input_count_);
       if (v.has_value()) {
         T new_v = co_await transform(std::move(v).value());
-        co_await output.GetQueue().Push(std::move(new_v));
+        co_await this->Push(std::move(new_v), output);
       } else {
-        co_await output.GetQueue().Push(std::move(v));
+        co_await this->Push(std::move(v), output);
         co_return;
       }
     }
@@ -58,8 +59,8 @@ class NoOpTransform : public SimpleTransform<T> {
     auto no_op = std::make_unique<NoOpTransform<T>>();
     no_op->input_count_ = sink->GetInputCount();
     no_op->input_port = sink->GetInputPort();
-    no_op->output_count_ = source->GetOutputCount();
     no_op->output_port = source->GetOutputPort();
+    no_op->BindAbortChannel(sink->GetAbortChannel());
     return no_op;
   }
 

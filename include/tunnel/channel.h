@@ -36,6 +36,8 @@ class Channel {
 
   Channel(std::shared_ptr<BoundedQueue<element_type>> queue) : queue_(queue) {}
 
+  Channel(size_t capacity) : queue_(std::make_shared<BoundedQueue<element_type>>(capacity)) {}
+
   Channel(const Channel &) = default;
   Channel &operator=(const Channel &) = default;
 

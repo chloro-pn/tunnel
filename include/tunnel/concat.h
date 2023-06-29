@@ -44,15 +44,16 @@ class Concat : public Processor<T> {
     for (auto it = inputs_.begin(); it != inputs_.end(); ++it) {
       Channel<T>& input = *it;
       while (true) {
-        std::optional<T> v = co_await input.GetQueue().Pop();
+        size_t current_input_count = 1;
+        std::optional<T> v = co_await this->Pop(input, current_input_count);
         if (v.has_value()) {
-          co_await output.GetQueue().Push(std::move(v));
+          co_await this->Push(std::move(v), output);
         } else {
           break;
         }
       }
     }
-    co_await output.GetQueue().Push(std::optional<T>{});
+    co_await this->Push(std::optional<T>{}, output);
   }
 
  private:

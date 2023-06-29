@@ -17,6 +17,7 @@
 #include "gtest/gtest.h"
 #include "test_define.h"
 #include "tunnel/dump_sink.h"
+#include "tunnel/pipeline.h"
 
 using namespace tunnel;
 
@@ -55,10 +56,9 @@ class DumpTestSource : public Source<DumpSinkTestClass> {
 
 TEST(dumpsinkTest, basic) {
   async_simple::executors::SimpleExecutor ex(1);
-  DumpTestSource source;
-  DumpSink<DumpSinkTestClass> sink;
-  connect(source, sink);
-  source.work().via(&ex).start([](async_simple::Try<void>) {});
-  async_simple::coro::syncAwait(sink.work().via(&ex));
+  Pipeline<DumpSinkTestClass> pipeline;
+  pipeline.AddSource(std::make_unique<DumpTestSource>());
+  pipeline.SetSink(std::make_unique<DumpSink<DumpSinkTestClass>>());
+  async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   EXPECT_EQ(DumpSinkTestClass::destruct_count_, 100);
 }
