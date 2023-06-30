@@ -30,7 +30,7 @@ namespace tunnel {
 template <typename T>
 class Fork : public Processor<T> {
  public:
-  explicit Fork(size_t size, const std::string& name = "")
+  explicit Fork(size_t size, const std::string& name = "fork")
       : Processor<T>(name), size_(size), copy_([](const T& v) { return v; }) {}
 
   void AddOutput(const Channel<T>& channel) {

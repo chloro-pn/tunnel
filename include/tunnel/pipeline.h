@@ -170,7 +170,7 @@ class Pipeline {
 
   uint64_t ConcatFrom(const std::vector<uint64_t>& leaves) {
     leaves_check(leaves);
-    auto concat_node = std::make_unique<Concat<T>>();
+    auto concat_node = std::make_unique<Concat<T>>(leaves.size());
     uint64_t id = concat_node->GetId();
     for (auto& each : leaves) {
       connect(*nodes_[each], *concat_node, option_.channel_size);

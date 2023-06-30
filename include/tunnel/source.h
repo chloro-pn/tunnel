@@ -29,7 +29,7 @@ namespace tunnel {
 template <typename T>
 class Source : public Processor<T> {
  public:
-  explicit Source(const std::string& name = "") : Processor<T>(name) {}
+  explicit Source(const std::string& name = "source") : Processor<T>(name) {}
 
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T> &output = this->GetOutputPort();

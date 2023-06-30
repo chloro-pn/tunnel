@@ -21,28 +21,19 @@
 #include <string>
 
 #include "tunnel/channel.h"
-#include "tunnel/processor.h"
+#include "tunnel/multi_input_one_output.h"
 
 namespace tunnel {
 
 template <typename T>
-class Concat : public Processor<T> {
+class Concat : public MultiIOneO<T> {
  public:
-  explicit Concat(const std::string& name = "") : Processor<T>(name) {}
-
-  /*
-   * 由pipeline接口保证，concat的input不存在一写多读和多写一读的情况，因此不需要记录
-   * input_count_。
-   */
-  void AddInputPort(const Channel<T>& channel) { inputs_.push_back(channel); }
-
-  size_t Size() const { return inputs_.size(); }
+  explicit Concat(size_t input_size, const std::string& name = "concat") : MultiIOneO<T>(name, input_size) {}
 
   virtual async_simple::coro::Lazy<void> work() override {
-    assert(!inputs_.empty());
     Channel<T>& output = this->GetOutputPort();
-    for (auto it = inputs_.begin(); it != inputs_.end(); ++it) {
-      Channel<T>& input = *it;
+    for (size_t i = 0; i < this->Size(); ++i) {
+      Channel<T>& input = this->GetChannel(i);
       while (true) {
         size_t current_input_count = 1;
         std::optional<T> v = co_await this->Pop(input, current_input_count);
@@ -55,17 +46,7 @@ class Concat : public Processor<T> {
     }
     co_await this->Push(std::optional<T>{}, output);
   }
-
- private:
-  std::vector<Channel<T>> inputs_;
 };
-
-template <typename T>
-inline void connect(Processor<T>& input, Concat<T>& output, size_t channel_size) {
-  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(channel_size));
-  input.SetOutputPort(channel);
-  output.AddInputPort(channel);
-}
 
 }  // namespace tunnel
 

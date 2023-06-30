@@ -28,7 +28,7 @@ namespace tunnel {
 template <typename T>
 class Sink : public Processor<T> {
  public:
-  explicit Sink(const std::string& name = "") : Processor<T>(name) {}
+  explicit Sink(const std::string& name = "sink") : Processor<T>(name) {}
 
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& input = this->GetInputPort();

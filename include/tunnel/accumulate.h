@@ -28,7 +28,7 @@ namespace tunnel {
 template <typename T>
 class Accumulate : public Transform<T> {
  public:
-  explicit Accumulate(const std::string& name = "") : Transform<T>(name) {}
+  explicit Accumulate(const std::string& name = "accumulate") : Transform<T>(name) {}
 
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& input = this->GetInputPort();

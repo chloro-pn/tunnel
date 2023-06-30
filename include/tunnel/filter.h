@@ -29,7 +29,7 @@ namespace tunnel {
 template <typename T>
 class Filter : public Transform<T> {
  public:
-  explicit Filter(const std::string &name = "") : Transform<T>(name) {}
+  explicit Filter(const std::string &name = "filter") : Transform<T>(name) {}
 
   virtual async_simple::coro::Lazy<void> work() {
     Channel<T> &input = this->GetInputPort();

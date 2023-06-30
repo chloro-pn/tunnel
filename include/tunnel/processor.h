@@ -61,8 +61,12 @@ class Processor {
 
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
 
+  // do some check before co_await work(), you can throw exception.
+  virtual void before_work() {}
+
   // co_await work() and handle exception
   async_simple::coro::Lazy<void> work_with_exception() {
+    before_work();
     async_simple::Try<void> result = co_await work().coAwaitTry();
     if (result.hasError()) {
       std::string exception_msg;

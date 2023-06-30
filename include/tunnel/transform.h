@@ -28,7 +28,7 @@ namespace tunnel {
 template <typename T>
 class Transform : public Processor<T> {
  public:
-  explicit Transform(const std::string& name = "") : Processor<T>(name) {}
+  explicit Transform(const std::string& name = "transform") : Processor<T>(name) {}
 };
 
 }  // namespace tunnel
