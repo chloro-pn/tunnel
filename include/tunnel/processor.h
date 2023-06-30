@@ -65,10 +65,17 @@ class Processor {
   async_simple::coro::Lazy<void> work_with_exception() {
     async_simple::Try<void> result = co_await work().coAwaitTry();
     if (result.hasError()) {
+      std::string exception_msg;
       if (!abort_port) {
+        try {
+          std::rethrow_exception(result.getException());
+        } catch (const std::exception &e) {
+          exception_msg = e.what();
+        }
         std::cerr << "node " << GetId() << " : " << GetName()
-                  << " throw exception and abort, we can't handle exception because it doesn't bind abort channel"
-                  << std::endl;
+                  << " throw exception and abort, we can't handle exception because it doesn't bind abort channel : "
+                  << std::endl
+                  << exception_msg << std::endl;
         std::abort();
       }
       // We only need TryPush to notify the exit information
@@ -79,8 +86,8 @@ class Processor {
   }
 
   // Attempt to read data from input, and if it fails, attempt to read data from abort_channel.
-  // Use co_await Yield{} to schedule out for the first yield_count_ of failed reads.
-  // If the yield_count_ exceeds the limit, use co_await sleep to schedule out.
+  // Use co_await Yield{} to give up cpu for the first yield_count_ of failed reads.
+  // If the yield_count_ exceeds the limit, use co_await sleep to give up cpu.
   async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
     while (true) {
       std::optional<T> value;
@@ -192,8 +199,8 @@ class Processor {
 };
 
 template <typename T>
-inline void connect(Processor<T> &input, Processor<T> &output) {
-  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size));
+inline void connect(Processor<T> &input, Processor<T> &output, size_t channel_size) {
+  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(channel_size));
   input.SetOutputPort(channel);
   output.SetInputPort(channel);
 }

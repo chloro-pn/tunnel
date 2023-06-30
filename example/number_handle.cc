@@ -83,7 +83,9 @@ class NumAccumulate : public Accumulate<int> {
 // You can find the structural diagram of the pipeline constructed by this example
 // in the file number_handle.md in the same directory
 int main() {
-  Pipeline<int> pipeline("number_handle_pipeline");
+  PipelineOption option;
+  option.name = "number_handle_pipeline";
+  Pipeline<int> pipeline(option);
   int result = 0;
   auto s1_id = pipeline.AddSource(std::make_unique<NumSource>("source1"));
   pipeline.AddTransform(s1_id, std::make_unique<NumTransform>("transform"));

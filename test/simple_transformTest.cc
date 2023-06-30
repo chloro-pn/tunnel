@@ -28,8 +28,8 @@ TEST(simpletransformTest, NoOpTest) {
   SinkTest sink;
   int result = 0;
   sink.callback = [&](int v) { result += v; };
-  connect(source, noop);
-  connect(noop, sink);
+  connect(source, noop, default_channel_size);
+  connect(noop, sink, default_channel_size);
 
   SimpleExecutor ex(2);
   source.work().via(&ex).start([](Try<void>) {});
@@ -49,8 +49,8 @@ TEST(simpletransformTest, simpleTest) {
   SinkTest sink;
   int result = 0;
   sink.callback = [&](int v) { result += v; };
-  connect(source, transform);
-  connect(transform, sink);
+  connect(source, transform, default_channel_size);
+  connect(transform, sink, default_channel_size);
 
   SimpleExecutor ex(2);
   source.work().via(&ex).start([](Try<void>) {});

@@ -38,6 +38,34 @@
 
 namespace tunnel {
 
+struct PipelineOption {
+  // 是否为Processor节点绑定abort_channel。
+  // Pipeline提供两种调度模式:
+  //   1. 当绑定abort_channel时，节点间通过tryPush/tryPop轮询来读写数据，
+  //   如果读写失败则 Yield/sleep让出cpu，这种方式支持Processor节点的异常捕获并传递给函数Pipeline::Run的返回值。
+  //   2. 当不绑定abort_channel时，节点间通过Push/Pop来读写数据，
+  //   如果当前队列满/空则会导致Processor挂起，这种方式不支持异常传递，某个节点抛出异常后tunnel会调用std::abort结束进程。
+  // 原因：通过Push/Pop读写数据时，Processor会被挂起到条件变量上，这时如果某个节点抛出异常通知其他节点尽早结束时，
+  // 挂起到条件变量上的Processor无法被唤醒，也无法有效回收协程资源。
+
+  // bind abort_channel for Processor or not.
+  // Pipeline provides two scheduling modes:
+  //   1. When binding abort_channel, Processor use tryPush/tryPop polling to read and write data.
+  //   If read and write fails, the Processor will give up cpu through Yield/sleep. This mode supports the
+  //   exception capture of the Processor and passes it to the return value of the function Pipeline::Run.
+  //   2. When not binding abort_channel, Processor use Push/Pop to read and write data.
+  //   If current queue is full/empty, it will cause the Processor suspend. This method does not support exception
+  //   passing. After a node throws an exception, tunnel will call std::abort to exit the process.
+  // Reason: When reading and writing data through Push/Pop, the Processor will be suspended on the condition variable.
+  // If a node throws an exception to notify other nodes to end as soon as possible, the Processor suspended on the
+  // condition variable cannot be awakened and cannot effectively reclaim process resources.
+  bool bind_abort_channel = false;
+  // Processor节点间队列的容量。
+  // MergePipeline后这个值会被设置为0，表示新的Pipeline中有多种容量的队列
+  size_t channel_size = default_channel_size;
+  std::string name = "default";
+};
+
 template <typename T>
 class Pipeline;
 
@@ -49,7 +77,7 @@ class Pipeline {
  public:
   friend Pipeline<T> MergePipeline<T>(Pipeline<T>&& left, Pipeline<T>&& right);
 
-  explicit Pipeline(const std::string& name = "default") : name_(name) {}
+  explicit Pipeline(const PipelineOption& option = PipelineOption{}) : option_(option) {}
 
   uint64_t AddSource(std::unique_ptr<Source<T>>&& source) {
     uint64_t id = source->GetId();
@@ -65,7 +93,7 @@ class Pipeline {
     new_node_check(trans_id);
     leaf_check(leaf_id);
     assert(nodes_.find(leaf_id) != nodes_.end());
-    connect(*nodes_[leaf_id], *transform);
+    connect(*nodes_[leaf_id], *transform, option_.channel_size);
     add_edge(leaf_id, trans_id);
     leaves_.erase(leaf_id);
     leaves_.insert(trans_id);
@@ -80,7 +108,7 @@ class Pipeline {
       uint64_t new_id = transform->GetId();
       new_node_check(new_id);
       assert(nodes_.find(each) != nodes_.end());
-      connect(*nodes_[each], *transform);
+      connect(*nodes_[each], *transform, option_.channel_size);
       add_edge(each, new_id);
       new_leaves_.insert(new_id);
       nodes_.insert({new_id, std::move(transform)});
@@ -124,13 +152,13 @@ class Pipeline {
     uint64_t dispatch_id = node->GetId();
     for (size_t i = 0; i < new_size; ++i) {
       auto no_op = std::make_unique<NoOpTransform<T>>();
-      connect(*node, *no_op);
+      connect(*node, *no_op, option_.channel_size);
       uint64_t noop_id = no_op->GetId();
       add_edge(dispatch_id, noop_id);
       result.insert(noop_id);
       nodes_.insert({noop_id, std::move(no_op)});
     }
-    connect(*nodes_[leaf], *node);
+    connect(*nodes_[leaf], *node, option_.channel_size);
     add_edge(leaf, dispatch_id);
     leaves_.erase(leaf);
     for (auto& each : result) {
@@ -145,7 +173,7 @@ class Pipeline {
     auto concat_node = std::make_unique<Concat<T>>();
     uint64_t id = concat_node->GetId();
     for (auto& each : leaves) {
-      connect(*nodes_[each], *concat_node);
+      connect(*nodes_[each], *concat_node, option_.channel_size);
       add_edge(each, id);
       leaves_.erase(each);
     }
@@ -161,13 +189,13 @@ class Pipeline {
     std::unordered_set<uint64_t> result;
     for (size_t i = 0; i < size; ++i) {
       auto no_op = std::make_unique<NoOpTransform<T>>();
-      connect(*node, *no_op);
+      connect(*node, *no_op, option_.channel_size);
       uint64_t noop_id = no_op->GetId();
       add_edge(fork_id, noop_id);
       result.insert(noop_id);
       nodes_.insert({noop_id, std::move(no_op)});
     }
-    connect(*nodes_[leaf], *node);
+    connect(*nodes_[leaf], *node, option_.channel_size);
     add_edge(leaf, fork_id);
     leaves_.erase(leaf);
     for (auto& each : result) {
@@ -188,7 +216,9 @@ class Pipeline {
     }
     Channel<int> abort_channel(10);
     for (auto&& node : nodes_) {
-      node.second->BindAbortChannel(abort_channel);
+      if (option_.bind_abort_channel) {
+        node.second->BindAbortChannel(abort_channel);
+      }
       lazies.emplace_back(std::move(node.second)->work_with_exception().via(ex));
     }
     auto results = co_await async_simple::coro::collectAllPara(std::move(lazies));
@@ -219,11 +249,11 @@ class Pipeline {
     return it != sinks_.end();
   }
 
-  const std::string& GetName() const { return name_; }
+  const std::string& GetName() const { return option_.name; }
 
   std::string Dump() const {
     std::stringstream result;
-    result << "pipeline : " << name_ << "\n";
+    result << "pipeline : " << option_.name << "\n";
     result << "node size : " << nodes_.size() << "\n";
     for (auto& each : nodes_) {
       auto edges = dags_.find(each.first);
@@ -242,7 +272,7 @@ class Pipeline {
   }
 
  private:
-  std::string name_;
+  PipelineOption option_;
   std::unordered_map<uint64_t, std::unique_ptr<Processor<T>>> nodes_;
   std::unordered_set<uint64_t> leaves_;
   std::unordered_map<uint64_t, std::unordered_set<uint64_t>> dags_;
@@ -281,7 +311,7 @@ class Pipeline {
     uint64_t id = node->GetId();
     new_node_check(id);
     leaves_check(leaves);
-    auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size);
+    auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(option_.channel_size);
     for (auto& each : leaves) {
       connect(*nodes_[each], *node, queue);
       add_edge(each, id);
@@ -301,7 +331,7 @@ class Pipeline {
     }
     uint64_t id = node->GetId();
     new_node_check(id);
-    auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size);
+    auto queue = std::make_shared<BoundedQueue<std::optional<T>>>(option_.channel_size);
     for (auto& each : leaves_) {
       connect(*nodes_[each], *node, queue);
       add_edge(each, id);
@@ -371,8 +401,12 @@ Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right) {
     auto no_op = NoOpTransform<T>::MergeSinkAndSource(std::move(sink), std::move(source));
     noops.emplace_back(std::move(no_op));
   }
+
   Pipeline<T> new_pipeline;
-  new_pipeline.name_ = left.name_ + "-merge-" + right.name_;
+  new_pipeline.option_.name = left.option_.name + "-merge-" + right.option_.name;
+  new_pipeline.option_.bind_abort_channel = left.option_.bind_abort_channel && right.option_.bind_abort_channel;
+  // 存在多种channel_size。
+  new_pipeline.option_.channel_size = 0;
   for (auto&& left_node : left.nodes_) {
     if (!left.IsSink(left_node.first)) {
       new_pipeline.nodes_.insert(std::move(left_node));

@@ -159,11 +159,11 @@ TEST(TestPipeline, channelfork) {
 }
 
 TEST(TestPipeline, pipelineMerge) {
-  Pipeline<int> p1("pipe1");
+  Pipeline<int> p1(PipelineOption{.name = "pipe1"});
   auto s1 = p1.AddSource(std::make_unique<SourceTest>(0, "s1"));
   auto s12 = p1.AddSource(std::make_unique<SourceTest>(0, "s12"));
   auto sink1 = p1.SetSink(std::make_unique<SinkTest>("sink1"));
-  Pipeline<int> p2("pipe2");
+  Pipeline<int> p2(PipelineOption{.name = "pipe2"});
   auto s2 = p2.AddSource(std::make_unique<SourceTest>(0, "s2"));
   auto sink2 = p2.SetSink(std::make_unique<SinkTest>("sink2"));
   Pipeline<int> merge_pipe = MergePipeline<int>(std::move(p1), std::move(p2));
@@ -173,11 +173,15 @@ TEST(TestPipeline, pipelineMerge) {
   EXPECT_FALSE(merge_pipe.IsSource(s2));
   EXPECT_TRUE(merge_pipe.IsSink(sink2));
   EXPECT_FALSE(merge_pipe.IsSink(sink1));
+  async_simple::executors::SimpleExecutor ex(2);
+  async_simple::coro::syncAwait(std::move(merge_pipe).Run().via(&ex));
 }
 
 TEST(TestPipeline, throwException) {
   async_simple::executors::SimpleExecutor ex(2);
-  Pipeline<int> pipeline;
+  PipelineOption option;
+  option.bind_abort_channel = true;
+  Pipeline<int> pipeline(option);
   auto s1 = pipeline.AddSource(std::make_unique<SourceTest>());
   pipeline.AddTransform(s1, std::make_unique<TransformTest>());
   pipeline.SetSink(std::make_unique<ThrowSinkTest>());

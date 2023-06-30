@@ -61,8 +61,8 @@ class Concat : public Processor<T> {
 };
 
 template <typename T>
-inline void connect(Processor<T>& input, Concat<T>& output) {
-  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size));
+inline void connect(Processor<T>& input, Concat<T>& output, size_t channel_size) {
+  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(channel_size));
   input.SetOutputPort(channel);
   output.AddInputPort(channel);
 }

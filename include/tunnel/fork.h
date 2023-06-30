@@ -72,8 +72,8 @@ class Fork : public Processor<T> {
 };
 
 template <typename T>
-inline void connect(Fork<T>& input, Processor<T>& output) {
-  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(default_channel_size));
+inline void connect(Fork<T>& input, Processor<T>& output, size_t channel_size) {
+  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(channel_size));
   input.AddOutput(channel);
   output.SetInputPort(channel);
 }

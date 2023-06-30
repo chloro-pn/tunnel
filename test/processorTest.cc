@@ -25,7 +25,7 @@ TEST(ProcessorTest, basic) {
   EXPECT_NE(node.GetId(), node2.GetId());
   EXPECT_EQ(node.GetName(), "test1");
   EXPECT_EQ(node2.GetName(), "test2");
-  connect(node, node2);
+  connect(node, node2, default_channel_size);
   EXPECT_THROW(node.work(), std::runtime_error);
   EXPECT_EQ(node2.GetInputPort(), true);
   EXPECT_EQ(node.GetOutputPort(), true);

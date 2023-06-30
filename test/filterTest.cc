@@ -32,8 +32,8 @@ TEST(filterTest, basic) {
   SinkTest sink;
   int result = 0;
   sink.callback = [&](int v) { result += v; };
-  connect(source, filter);
-  connect(filter, sink);
+  connect(source, filter, default_channel_size);
+  connect(filter, sink, default_channel_size);
   async_simple::executors::SimpleExecutor ex(2);
   source.work().via(&ex).start([](async_simple::Try<void>) {});
   filter.work().via(&ex).start([](async_simple::Try<void>) {});
