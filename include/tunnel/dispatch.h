@@ -22,53 +22,35 @@
 #include <vector>
 
 #include "tunnel/channel.h"
-#include "tunnel/processor.h"
+#include "tunnel/one_input_multi_output.h"
 
 namespace tunnel {
 
 template <typename T>
-class Dispatch : public Processor<T> {
+class Dispatch : public OneIMultiO<T> {
  public:
   virtual async_simple::coro::Lazy<void> work() {
     Channel<T>& input = this->GetInputPort();
     while (true) {
       std::optional<T> v = co_await this->Pop(input, this->input_count_);
       if (!v.has_value()) {
-        for (auto it = outputs_.begin(); it != outputs_.end(); ++it) {
-          Channel<T>& output = (*it);
+        for (size_t index = 0; index < this->Size(); ++index) {
+          Channel<T>& output = this->GetChannel(index);
           co_await this->Push(std::optional<T>{}, output);
         }
         co_return;
       } else {
-        size_t output_index = dispatch(v.value()) % outputs_.size();
-        co_await this->Push(std::move(v), outputs_[output_index]);
+        size_t output_index = dispatch(v.value()) % this->Size();
+        Channel<T>& output = this->GetChannel(output_index);
+        co_await this->Push(std::move(v), output);
       }
     }
   }
 
-  explicit Dispatch(size_t size, const std::string& name = "dispatch") : Processor<T>(name), size_(size) {}
-
-  void AddOutput(const Channel<T>& channel) {
-    if (outputs_.size() < size_) {
-      outputs_.push_back(channel);
-    }
-  }
+  explicit Dispatch(size_t size, const std::string& name = "dispatch") : OneIMultiO<T>(name, size) {}
 
   virtual size_t dispatch(const T& value) = 0;
-
-  size_t GetSize() const { return size_; }
-
- private:
-  const size_t size_;
-  std::vector<Channel<T>> outputs_;
 };
-
-template <typename T>
-inline void connect(Dispatch<T>& input, Processor<T>& output, size_t channel_size) {
-  Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(channel_size));
-  input.AddOutput(channel);
-  output.SetInputPort(channel);
-}
 
 }  // namespace tunnel
 

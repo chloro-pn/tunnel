@@ -148,7 +148,7 @@ class Pipeline {
   std::unordered_set<uint64_t> DispatchFrom(uint64_t leaf, std::unique_ptr<Dispatch<T>>&& node) {
     leaf_check(leaf);
     std::unordered_set<uint64_t> result;
-    size_t new_size = node->GetSize();
+    size_t new_size = node->Size();
     uint64_t dispatch_id = node->GetId();
     for (size_t i = 0; i < new_size; ++i) {
       auto no_op = std::make_unique<NoOpTransform<T>>();
@@ -424,7 +424,7 @@ Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right) {
     noop_ids.push_back(id);
     new_pipeline.nodes_.insert({id, std::move(noop_node)});
   }
-  // alse completed
+  // also completed
   new_pipeline.leaves_ = {};
   // merge dags
   detail::ReplaceSinkIdInDags(left.dags_, left.sinks_, noop_ids);

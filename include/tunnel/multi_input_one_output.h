@@ -26,7 +26,7 @@ class MultiIOneO : public Processor<T> {
     }
   }
 
-  size_t Size() const { return inputs_.size(); }
+  size_t Size() const { return input_size_; }
 
  protected:
   Channel<T>& GetChannel(size_t index) { return inputs_.at(index); }
