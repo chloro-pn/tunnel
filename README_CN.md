@@ -53,12 +53,12 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 
 ## Todo
 1. 支持更多类型的节点 [**doing**]
-2. 支持Pipeline合并 [**doing**]
+2. 支持Pipeline合并 [done]
 3. 拓扑检测
-4. 调度事件收集
-5. 支持中止执行 [**done with throw exception**]
-6. 执行过程中的异常处理 [**doing**]
-7. 实现一个高性能的Executor
+4. 调度事件收集 [**doing**]
+5. 支持中止执行 [done with throw exception]
+6. 执行过程中的异常处理 [done]
+7. 实现一个高性能的Executor [**doing**]
 8. 支持运行时扩展Pipeline
 9. 支持分布式调度（首先需要支持基于coroutine的网络io）
 

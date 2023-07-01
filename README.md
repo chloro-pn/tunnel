@@ -25,6 +25,8 @@ This project has the following features:
 ## Dependencies
 * async_simple
 * googletest
+* chriskohlhoff/asio
+* rigtorp/MPMCQueue
 
 ## Design
 Firstly, you need to understand several basic concepts:
@@ -64,15 +66,14 @@ Please read the doc directory and example directory to learn the API usage for t
 
 ## Todo
 1. Support for more types of nodes [**doing**]
-2. Support Pipeline Merge [**doing**]
+2. Support Pipeline Merge [done]
 3. Topology detection
-4. Schedule event collection
-5. Support active stop of execution [**done with throw exception**]
-6. Exception handling during execution [**doing**]
-7. Implementing a high-performance Executor
+4. Schedule event collection [**doing**]
+5. Support active stop of execution [done with throw exception]
+6. Exception handling during execution [done]
+7. Implementing a high-performance Executor [**doing**]
 8. Support for extension of Pipeline at runtime
 9. Support for distributed scheduling (support for network io based on async_simple first)
-
 
 ## License
 tunnel is distributed under the Apache License (Version 2.0).

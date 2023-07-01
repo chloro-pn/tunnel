@@ -25,3 +25,17 @@ git_repository(
     remote = "https://github.com/alibaba/async_simple",
     commit = "dd9a07749ade7735e675148a1e5c5559359a61cc",
 )
+
+new_git_repository(
+    name = "mpmcqueue",
+    remote = "https://github.com/rigtorp/MPMCQueue",
+    commit = "28d05c021d68fc5280b593329d1982ed02f9d7b3",
+    build_file = "//third_party:mpmc_queue.build",
+)
+
+new_git_repository(
+    name = "asio",
+    remote = "https://github.com/chriskohlhoff/asio",
+    tag = "asio-1-28-0",
+    build_file = "//third_party:asio.build",
+)

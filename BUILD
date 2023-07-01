@@ -31,6 +31,8 @@ cc_library(
   copts = TUNNEL_COPTS,
   deps = [
     "@async_simple//:async_simple",
+    "@mpmcqueue//:mpmc_queue",
+    "@asio//:asio",
   ]
 )
 
