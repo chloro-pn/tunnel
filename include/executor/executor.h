@@ -129,6 +129,9 @@ class TunnelExecutor : public Executor {
     }
   }
 
+  // for test.
+  void schedule_timer(Func func, Duration dur) { schedule(std::move(func), std::move(dur)); }
+
  protected:
   virtual void schedule(Func func, Duration dur) override { timer_manager_.PushTimer(std::move(func), dur); }
 

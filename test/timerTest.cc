@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#define protected public
 
 #include <condition_variable>
 #include <mutex>
@@ -28,7 +27,7 @@ TEST(timerTest, basic) {
   std::mutex mut;
   std::condition_variable cv;
   bool called = false;
-  ex.schedule(
+  ex.schedule_timer(
       [&]() {
         std::unique_lock<std::mutex> guard(mut);
         called = true;
