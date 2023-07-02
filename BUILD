@@ -11,7 +11,8 @@ TUNNEL_COPTS = select({
   ":msvc" : [
     "/std:c++20",
     "/await:strict",
-    "/EHa"
+    "/EHa",
+    "_XKEYCHECK_H",
   ],
   "//conditions:default" : [
     "-std=c++20",
