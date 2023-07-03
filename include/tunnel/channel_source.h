@@ -2,7 +2,7 @@
 #define TUNNEL_CHANNEL_SOURCE_H
 
 #include "tunnel/channel.h"
-#include "tunnel/processor.h"
+#include "tunnel/source.h"
 
 namespace tunnel {
 

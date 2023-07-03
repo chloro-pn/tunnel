@@ -68,3 +68,14 @@ cc_binary(
     "@async_simple//:simple_executors",
   ],
 )
+
+
+cc_binary(
+  name = "embed_pipeline",
+  srcs = glob(["example/embed_pipeline.cc"]),
+  copts = TUNNEL_COPTS,
+  deps = [
+    ":tunnel",
+    "@async_simple//:simple_executors",
+  ],
+)
