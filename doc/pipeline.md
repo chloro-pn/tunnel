@@ -61,8 +61,16 @@
 * `std::string Dump() const`
 dump当前pipeline的结构信息。
 
-**about exception** 
+#### about exception
+根据是否为Processor节点绑定abort_channel，Pipeline提供两种调度模式:
+  1. 当绑定abort_channel时，节点间通过tryPush/tryPop轮询来读写数据，
+  如果读写失败则 Yield/sleep让出cpu，这种方式支持Processor节点的异常捕获并传递给函数Pipeline::Run的返回值。当节点抛出异常时，首先根据async_simple的异常传递机制，该异常会被实际调度的底层协程捕获，然后该节点会通过一个特别的`abort_channel`将这个消息通知给其他所有节点，每个节点在收到`abort_channel`发送的消息后执行清理工作并尽快退出。最后Pipeline等待所有工作节点退出后Run函数返回。
 
-Pipeline支持节点抛出异常，即便在多线程条件下两个节点同时抛出异常。
+  2. 当不绑定abort_channel时，节点间通过Push/Pop来读写数据，
+  如果当前队列满/空则会导致Processor挂起，这种方式不支持异常传递，某个节点抛出异常后tunnel会调用std::abort结束进程。
+ 
+ 原因：通过Push/Pop读写数据时，Processor会被挂起到条件变量上，这时如果某个节点抛出异常通知其他节点尽早结束时，挂起到条件变量上的Processor无法被唤醒，也无法有效回收协程资源。
 
- 当节点抛出异常时，首先根据async_simple的异常传递机制，该异常会被实际调度的底层协程捕获，然后该节点会通过一个特别的`abort_channel`将这个消息通知给其他所有节点，每个节点在收到`abort_channel`发送的消息后执行清理工作并尽快退出。最后Pipeline等待所有工作节点退出后Run函数返回。
+ #### expand pipeline at runtime
+ 有些场景下需要在pipeline运行时，根据上游数据的特点动态修改pipeline的结构，tunnel通过支持嵌套pipeline来满足这种需求。example/embed_pipeline显示了一个嵌套pipeline的基本实例。
+ 嵌套pipeline，即可以在Processor的处理函数中构建并调度一个子pipeline，这个子pipeline的生命周期包含在Processor的处理函数中。可以通过两个特殊的节点：ChannelSource和ChannelSink，将Processor的input_channel/output_channel作为子pipeline的source与sink，这样子pipeline可以接受Processor的input_channel中的数据，处理后再写给Processor的output_channel。相当于在原有的数据流中插入了新的处理逻辑。

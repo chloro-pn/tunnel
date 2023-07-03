@@ -14,7 +14,7 @@ using namespace tunnel;
 
 class MySink : public Sink<std::string> {
  public:
-  virtual async_simple::coro::Lazy<void> consume(std::string &&value) override {
+  virtual async_simple::coro::Lazy<void> consume(std::string&& value) override {
     std::cout << value << std::endl;
     co_return;
   }
@@ -37,18 +37,23 @@ class MyTransform : public Transform<std::string> {
   virtual async_simple::coro::Lazy<void> work() override {
     auto input_channel = this->GetInputPort();
     auto output_channel = this->GetOutputPort();
+
     Pipeline<std::string> sub_pipeline;
     auto source = std::make_unique<ChannelSource<std::string>>();
     source->SetInputChannel(input_channel);
     auto id = sub_pipeline.AddSource(std::move(source));
-
-    sub_pipeline.ForkFrom(id, 2);
-
+    sub_pipeline.ForkFrom(id, 3);
     auto sink = std::make_unique<ChannelSink<std::string>>();
     sink->SetOutputChannel(output_channel);
     sub_pipeline.SetSink(std::move(sink));
+
     auto result = co_await std::move(sub_pipeline).Run();
     // handle result
+    for (auto& each : result) {
+      if (each.hasError()) {
+        std::rethrow_exception(each.getException());
+      }
+    }
   }
 };
 
