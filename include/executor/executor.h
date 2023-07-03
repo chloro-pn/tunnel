@@ -149,7 +149,7 @@ inline void TimerManager::PushTimer(Func func, Duration duration) {
   auto timer = std::make_shared<asio::steady_timer>(ctx_, duration);
   timer->async_wait([this, func = std::move(func), self = timer](asio::error_code ec) {
     if (ec) {
-      throw std::runtime_error(std::to_string(ec.value()) + ec.message());
+      throw std::runtime_error(ec.message());
     }
     bool succ = executor_->schedule(std::move(func));
     if (succ == false) {

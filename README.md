@@ -3,7 +3,6 @@
 
 ![](https://tokei.rs/b1/github/chloro-pn/tunnel) ![](https://tokei.rs/b1/github/chloro-pn/tunnel?category=files) ![Static Badge](https://img.shields.io/badge/c%2B%2B-20-blue)
 
-
 Tunnel is a cross platform, lightweight, and highly adaptable task execution framework based on `C++20 coroutine`. You can use it to build task execution engines with complex dependencies, or pipeline execution engines.The idea of this project comes from the execution engine of `ClickHouse`. 
 
 This project has the following features:
@@ -41,9 +40,11 @@ Firstly, you need to understand several basic concepts:
 
 The above are the four most basic concepts in this project, followed by some derived concepts:
 * `Source`：`Source` is a type of `Processor` that does not have an `input_port` and is the node that generates data.
-* `EmptySource`：`Source` is a type of `Processor` that only generates a EOF info.
+* `EmptySource`：`EmptySource` is a type of `Source` that only generates a EOF info.
+* `ChannelSource`：`ChannelSource`is a type of `Source` that read data from bind_channel.
 * `Sink`：`Sink` is a type of `Processor` that does not have an `output_port` and is a node that consumes data.
 * `DumpSimk`：`DumpSimk` is a type of `Sink` that reads and discards data.
+* `ChannelSink`：`ChannelSink`is a type of `Sink` that read data and write to bind_channel.
 * `TransForm`：`TransForm` is a type of `Processor` that exists only to provide a different `Processor` type from `Source` and `Sink`.
 * `SimpleTransForm`：`SimpleTransForm` is a type of `TransForm` that only has one `input_port` and one `output_port`, used to perform simple transformations. Most of the user's logic should be accomplished through inheritance of this class.
 * `NoOpTransform`：`NoOpTransform` is a type of `SimpleTransForm` that is only used for placeholders.

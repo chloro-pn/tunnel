@@ -14,6 +14,8 @@ class MultiIOneOTest : public MultiIOneO<int> {
 
 TEST(testMultiIOneO, basic) {
   MultiIOneOTest multi(3);
+  Channel<int> abort_channel(2);
+  multi.BindAbortChannel(abort_channel);
   try {
     syncAwait(multi.work_with_exception());
   } catch (const std::runtime_error& e) {

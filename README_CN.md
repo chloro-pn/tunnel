@@ -30,9 +30,11 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 
 以上是本项目中最基本的四个概念，接下来是一些派生概念：
 * `Source`：`Source`是一种`Processor`，它不具有`input_port`，是产生数据的节点。
-* `EmptySource`：`Source`是一种`Processor`，它只会产生一个EOF数据。
+* `EmptySource`：`EmptySource`是一种`Source`，它只会产生一个EOF数据。
+* `ChannelSource`：`ChannelSource`是一种`Source`，它会从绑定的channel中读取数据。
 * `Sink`：`Sink`是一种`Processor`，它不具有`output_port`，是消费数据的节点。
 * `DumpSimk`：`DumpSimk`是一种`Sink`，它读取并丢弃数据。
+* `ChannelSink`：`ChannelSink`是一种`Sink`，它将读取的数据写入绑定的channel中。
 * `TransForm`：`TransForm`是一种`Processor`，它的存在仅为了提供一种不同于`Source`和`Sink`的`Processor`类型。
 * `SimpleTransForm`：`SimpleTransForm`是一种`TransForm`，它只具有一个`input_port`和一个`output_port`，用于执行简单的转换，用户的大部分逻辑应该通过继承此类完成。
 * `NoOpTransform`：`NoOpTransform`是一种`SimpleTransForm`，它具有占位功能。

@@ -64,9 +64,26 @@ class Processor {
   // do some check before co_await work(), you can throw exception.
   virtual void before_work() {}
 
+  // do some work after co_await work(), look at channel_sink.
+  virtual async_simple::coro::Lazy<void> after_work() { co_return; }
+
   // co_await work() and handle exception
   async_simple::coro::Lazy<void> work_with_exception() {
-    before_work();
+    std::string exception_message;
+    try {
+      before_work();
+    } catch (const std::exception &e) {
+      if (!abort_port) {
+        std::cerr << "node " << GetId() << " : " << GetName() << "throw exception before work : " << e.what()
+                  << std::endl;
+        std::abort();
+      }
+      exception_message = e.what();
+    }
+    if (!exception_message.empty()) {
+      co_await abort_port.GetQueue().TryPush(0);
+      throw std::runtime_error(exception_message);
+    }
     async_simple::Try<void> result = co_await work().coAwaitTry();
     if (result.hasError()) {
       std::string exception_msg;
@@ -85,6 +102,10 @@ class Processor {
       // We only need TryPush to notify the exit information
       co_await abort_port.GetQueue().TryPush(0);
       std::rethrow_exception(result.getException());
+    }
+    // after_work will be called without exception occur
+    else {
+      co_await after_work();
     }
     co_return;
   }
