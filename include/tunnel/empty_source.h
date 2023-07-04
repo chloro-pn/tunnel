@@ -23,6 +23,9 @@
 
 namespace tunnel {
 
+/*
+ * EmptySource just return EOF to output channel.
+ */
 template <typename T>
 class EmptySource : public Source<T> {
  public:

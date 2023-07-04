@@ -27,6 +27,9 @@
 
 namespace tunnel {
 
+/*
+ * Fork read data from input channel, copy it and write it to each output channel.
+ */
 template <typename T>
 class Fork : public OneIMultiO<T> {
  public:

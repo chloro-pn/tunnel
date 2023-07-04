@@ -25,6 +25,10 @@
 
 namespace tunnel {
 
+/*
+ * Concat read data from multiple input channels in sequence and write it to output channel.
+ * Only after reading EOF from the current input channel will it start reading from the next input channel.
+ */
 template <typename T>
 class Concat : public MultiIOneO<T> {
  public:

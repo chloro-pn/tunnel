@@ -61,7 +61,7 @@ class Processor {
 
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
 
-  // do some check before co_await work(), you can throw exception.
+  // do some check before co_await work(), you can throw an exception to terminate execution
   virtual void before_work() {}
 
   // do some work after co_await work(), look at channel_sink.

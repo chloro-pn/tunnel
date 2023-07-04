@@ -28,6 +28,10 @@
 
 namespace tunnel {
 
+/*
+ * SimpleTransform read data from input channel, call transform function and write the result to output channel
+ * The transform function is need to be inherited and implemented by the user.
+ */
 template <typename T>
 class SimpleTransform : public Transform<T> {
  public:

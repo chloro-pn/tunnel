@@ -5,11 +5,15 @@
 
 namespace tunnel {
 
+/*
+ * ChannelSource read data from input channel (set by user) and write to output channel.
+ */
 template <typename T>
 class ChannelSource : public Source<T> {
  public:
   ChannelSource(const std::string& name = "channel_source") : Source<T>(name) {}
 
+  // user have to set input channel before running pipeline, otherwise an exception will be thrown
   void SetInputChannel(const Channel<T>& input) {
     Channel<T>& input_channel = this->GetInputPort();
     input_channel = input;

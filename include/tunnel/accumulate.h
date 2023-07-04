@@ -25,6 +25,10 @@
 
 namespace tunnel {
 
+/*
+ * Accumulate read data from input channel and call consume() for consumption.
+ * After reading EOF, it will call generate() once to get data and write the result to output channel.
+ */
 template <typename T>
 class Accumulate : public Transform<T> {
  public:

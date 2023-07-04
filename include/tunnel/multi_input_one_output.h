@@ -10,6 +10,9 @@
 
 namespace tunnel {
 
+/*
+ * MultiIOneO have multiple input channels and one output channel.
+ */
 template <typename T>
 class MultiIOneO : public Processor<T> {
  public:

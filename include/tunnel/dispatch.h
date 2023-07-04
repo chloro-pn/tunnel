@@ -26,6 +26,10 @@
 
 namespace tunnel {
 
+/*
+ * Dispatch read data from input channel and call the dispatch function to obtain the index value of the output channel
+ * to be written. The dispatch function is need to be inherited and implemented by the user.
+ */
 template <typename T>
 class Dispatch : public OneIMultiO<T> {
  public:

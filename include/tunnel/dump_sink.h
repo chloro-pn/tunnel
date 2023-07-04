@@ -25,6 +25,9 @@
 
 namespace tunnel {
 
+/*
+ * DumpSink read data from upstream and dump it.
+ */
 template <typename T>
 class DumpSink : public Sink<T> {
  public:

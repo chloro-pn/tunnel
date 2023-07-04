@@ -26,6 +26,10 @@
 
 namespace tunnel {
 
+/*
+ * Filter read data from input channel and call the filter function to determine whether to write it to output channel.
+ * The filter function is need to be inherited and implemented by the user.
+ */
 template <typename T>
 class Filter : public Transform<T> {
  public:
