@@ -1,0 +1,1 @@
+![example](https://github.com/chloro-pn/draw_io_repo/blob/master/embed.drawio.svg)
