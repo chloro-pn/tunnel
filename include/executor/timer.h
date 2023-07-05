@@ -42,6 +42,7 @@ class TimerManager {
   void Stop() {
     if (start_ == true && stop_ == false) {
       work.reset();
+      ctx_.stop();
       timer_work_.join();
       stop_ = true;
     }

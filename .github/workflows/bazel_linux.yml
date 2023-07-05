@@ -13,11 +13,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      # Build your program with clang
+      # Build your program with gcc
       working-directory: ${{github.workspace}}
-      run: bazel build --action_env=CXX=clang++ --action_env=CC=clang ...
+      run: bazel build --action_env=CXX=g++ --action_env=CC=gcc ...
 
     - name: Test
       # Build and Execute tests
       working-directory: ${{github.workspace}}
-      run: bazel test --action_env=CXX=clang++ --action_env=CC=clang --test_output=errors ...
+      run: bazel test --action_env=CXX=g++ --action_env=CC=gcc --test_output=errors ...
