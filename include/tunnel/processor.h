@@ -132,7 +132,7 @@ class Processor {
               ++yield_count_;
               co_await async_simple::coro::Yield{};
             } else {
-              co_await async_simple::coro::sleep(std::chrono::milliseconds(20));
+              co_await async_simple::coro::sleep(std::chrono::milliseconds(5));
             }
           }
         }
@@ -167,7 +167,7 @@ class Processor {
           ++yield_count_;
           co_await async_simple::coro::Yield{};
         } else {
-          co_await async_simple::coro::sleep(std::chrono::milliseconds(20));
+          co_await async_simple::coro::sleep(std::chrono::milliseconds(5));
         }
       }
     } else {
@@ -183,6 +183,7 @@ class Processor {
 
   void SetOutputPort(const Channel<T> &output) { output_port = output; }
 
+  // can only be called by Pipeline.
   void BindAbortChannel(const Channel<int> &abort) { abort_port = abort; }
 
   virtual ~Processor() {}

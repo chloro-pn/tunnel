@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -53,13 +54,19 @@ class TunnelExecutor : public Executor {
     init_cv.wait(guard, [&]() { return finished == thread_num_ + 1; });
   }
 
+  static size_t GetRandomNumber(size_t begin, size_t end) {
+    static thread_local std::mt19937 generator(std::random_device{}());
+    std::uniform_int_distribution<int> distribution(static_cast<int>(begin), static_cast<int>(end));
+    return distribution(generator);
+  }
+
   virtual bool schedule(Func func) override {
     auto id = GetCurrentId();
     size_t worker_index = 0;
     if (id->second == this) {
       worker_index = id->first;
     } else {
-      worker_index = rand() % GetThreadNum();
+      worker_index = GetRandomNumber(0, GetThreadNum() - 1);
     }
     bool succ = false;
     for (size_t i = 0; i < GetThreadNum(); ++i) {
