@@ -26,9 +26,9 @@ TEST(executorText, basic) {
   EXPECT_EQ(ex.GetThreadNum(), 4);
   EXPECT_EQ(ex.currentThreadInExecutor(), false);
   std::atomic<uint64_t> count{0};
-  for (size_t i = 0; i < 10000; ++i) {
+  for (size_t i = 0; i < 1000000; ++i) {
     ex.schedule([&]() { count.fetch_add(1); });
   }
   ex.Stop();
-  EXPECT_EQ(count.load(), 10000);
+  EXPECT_EQ(count.load(), 1000000);
 }

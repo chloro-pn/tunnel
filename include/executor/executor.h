@@ -19,6 +19,10 @@ namespace tunnel {
 
 using async_simple::Executor;
 
+struct TunnelExecutorOption {
+  bool force_stop = false;
+};
+
 class TunnelExecutor : public Executor {
  public:
   using Executor::Func;
@@ -60,8 +64,10 @@ class TunnelExecutor : public Executor {
     bool succ = false;
     for (size_t i = 0; i < GetThreadNum(); ++i) {
       size_t try_push_id = (worker_index + i) % GetThreadNum();
+      std::unique_lock<std::mutex> guard(*muts_[try_push_id]);
       succ = task_queue_[try_push_id]->try_push(std::move(func));
       if (succ == true) {
+        guard.unlock();
         cvs_[try_push_id]->notify_one();
         break;
       }
@@ -100,9 +106,12 @@ class TunnelExecutor : public Executor {
           return;
         }
         std::unique_lock lock(*muts_[worker_id]);
-        cvs_[worker_id]->wait_for(lock, std::chrono::milliseconds(10), [&]() { return this->stop_ == true; });
+        cvs_[worker_id]->wait(lock, [&]() { return this->stop_ == true || task_queue_[worker_id]->try_pop(func); });
         if (stop_ == true) {
           stop_when_try_pop_failed = true;
+        } else {
+          lock.unlock();
+          func();
         }
       }
     }

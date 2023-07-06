@@ -25,14 +25,14 @@ class SocketAwaiterBase {
   template <typename T>
   T await_resume_or_throw(T&& v) {
     if (succ_ == false) {
-      throw std::runtime_error(err_msg_);
+      throw std::runtime_error(std::move(err_msg_));
     }
     return std::forward<T>(v);
   }
 
   void await_resume_or_throw() {
     if (succ_ == false) {
-      throw std::runtime_error(err_msg_);
+      throw std::runtime_error(std::move(err_msg_));
     }
   }
 
