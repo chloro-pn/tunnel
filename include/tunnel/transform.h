@@ -29,6 +29,14 @@ template <typename T>
 class Transform : public Processor<T> {
  public:
   explicit Transform(const std::string& name = "transform") : Processor<T>(name) {}
+
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    Channel<T>& input = this->GetInputPort();
+    Channel<T>& output = this->GetOutputPort();
+    co_await this->close_input(input, this->input_count_);
+    co_await this->close_output(output);
+    co_return;
+  }
 };
 
 }  // namespace tunnel

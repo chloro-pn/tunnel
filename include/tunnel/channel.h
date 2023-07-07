@@ -47,6 +47,8 @@ class Channel {
 
   operator bool() const { return queue_.operator bool(); }
 
+  void reset() { queue_.reset(); }
+
  private:
   std::shared_ptr<BoundedQueue<element_type>> queue_;
 };

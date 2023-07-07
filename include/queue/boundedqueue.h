@@ -41,7 +41,7 @@ class BoundedQueue {
 
   explicit BoundedQueue(size_t capacity) : capacity_(capacity) {}
 
-  Lazy<element_type> Pop() {
+  Lazy<element_type> Pop() noexcept {
     auto lock = co_await mut_.coScopedLock();
     if (queue_.empty()) {
       co_await empty_cv_.wait(mut_, [&]() { return !this->queue_.empty(); });
@@ -52,7 +52,7 @@ class BoundedQueue {
     co_return result;
   }
 
-  Lazy<Try<element_type>> TryPop() {
+  Lazy<Try<element_type>> TryPop() noexcept {
     auto lock = co_await mut_.coScopedLock();
     if (queue_.empty()) {
       co_return Try<element_type>{};
@@ -64,7 +64,7 @@ class BoundedQueue {
   }
 
   template <typename T2>
-  Lazy<void> Push(T2 &&element) {
+  Lazy<void> Push(T2 &&element) noexcept {
     auto lock = co_await mut_.coScopedLock();
     if (queue_.size() == this->Capacity()) {
       co_await filled_cv_.wait(mut_, [&]() { return this->queue_.size() < this->Capacity(); });
@@ -74,7 +74,7 @@ class BoundedQueue {
   }
 
   template <typename T2>
-  Lazy<bool> TryPush(T2 &&element) {
+  Lazy<bool> TryPush(T2 &&element) noexcept {
     auto lock = co_await mut_.coScopedLock();
     if (queue_.size() == Capacity()) {
       co_return false;

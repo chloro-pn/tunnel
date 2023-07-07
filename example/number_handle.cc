@@ -85,6 +85,7 @@ class NumAccumulate : public Accumulate<int> {
 int main() {
   PipelineOption option;
   option.name = "number_handle_pipeline";
+  option.bind_abort_channel = true;
   Pipeline<int> pipeline(option);
   int result = 0;
   auto s1_id = pipeline.AddSource(std::make_unique<NumSource>("source1"));
@@ -103,7 +104,7 @@ int main() {
   std::cout << "pipeline dump : " << std::endl;
   std::cout << pipeline.Dump() << std::endl;
 
-  SimpleExecutor ex(4);
+  SimpleExecutor ex(1);
   syncAwait(std::move(pipeline).Run().via(&ex));
   std::cout << "the result should be " << 5050 * 2 + 2500 << std::endl;
   std::cout << "result : " << result << std::endl;

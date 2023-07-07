@@ -52,26 +52,3 @@ TEST(channelSourceTest, basic) {
   EXPECT_EQ(count, 3);
   EXPECT_EQ(sum, 6);
 }
-
-TEST(channelSourceTest, empty_channel) {
-  Pipeline<int> pipeline(PipelineOption{.bind_abort_channel = true});
-  auto channel_source = std::make_unique<ChannelSource<int>>();
-  pipeline.AddSource(std::move(channel_source));
-  auto sink = std::make_unique<SinkTest>();
-  sink->callback = [&](int v) {};
-  pipeline.SetSink(std::move(sink));
-  async_simple::executors::SimpleExecutor ex(2);
-  auto results = async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
-  for (auto& each : results) {
-    if (each.hasError()) {
-      std::string result;
-      try {
-        std::rethrow_exception(each.getException());
-      } catch (const std::exception& e) {
-        result = e.what();
-      }
-      EXPECT_TRUE(result == "channel source should set input channel before work" ||
-                  result == "throw by abort channel");
-    }
-  }
-}

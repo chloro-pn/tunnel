@@ -29,6 +29,16 @@ class OneIMultiO : public Processor<T> {
     }
   }
 
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    Channel<T>& input = this->GetInputPort();
+    co_await this->close_input(input, this->input_count_);
+    for (size_t i = 0; i < Size(); ++i) {
+      Channel<T>& output = GetChannel(i);
+      co_await this->close_output(output);
+    }
+    co_return;
+  }
+
   size_t Size() const { return output_size_; }
 
  protected:

@@ -43,6 +43,12 @@ class Source : public Processor<T> {
     }
   }
 
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    Channel<T> &output = this->GetOutputPort();
+    co_await this->close_output(output);
+    co_return;
+  }
+
   virtual async_simple::coro::Lazy<std::optional<T>> generate() = 0;
 };
 

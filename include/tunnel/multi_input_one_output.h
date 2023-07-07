@@ -29,6 +29,17 @@ class MultiIOneO : public Processor<T> {
     }
   }
 
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    for (size_t i = 0; i < Size(); ++i) {
+      Channel<T>& input = GetChannel(i);
+      size_t current_input_count = 1;
+      co_await this->close_input(input, current_input_count);
+    }
+    Channel<T>& output = this->GetOutputPort();
+    co_await this->close_output(output);
+    co_return;
+  }
+
   size_t Size() const { return input_size_; }
 
  protected:

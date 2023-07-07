@@ -183,7 +183,8 @@ TEST(TestPipeline, throwException) {
   option.bind_abort_channel = true;
   Pipeline<int> pipeline(option);
   auto s1 = pipeline.AddSource(std::make_unique<SourceTest>());
-  pipeline.AddTransform(s1, std::make_unique<TransformTest>());
+  auto t1 = pipeline.AddTransform(s1, std::make_unique<TransformTest>());
+  pipeline.ForkFrom(t1, 3);
   pipeline.SetSink(std::make_unique<ThrowSinkTest>());
   auto results = async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   for (auto& each : results) {

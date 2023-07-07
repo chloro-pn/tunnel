@@ -57,32 +57,51 @@ template <typename T>
 class Processor {
  public:
   explicit Processor(const std::string &name = "")
-      : processor_id_(detail::GenerateId()), name_(name), input_count_(0), yield_count_(0) {}
+      : processor_id_(detail::GenerateId()), name_(name), input_count_(0) {}
 
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
 
-  // do some check before co_await work(), you can throw an exception to terminate execution
+  // perform some checks before co_await work(), you can throw an exception to terminate execution
   virtual void before_work() {}
 
-  // do some work after co_await work(), look at channel_sink.
+  // be called after co_await work(), look at channel_sink for detail.
   virtual async_simple::coro::Lazy<void> after_work() { co_return; }
+
+  // after co_await work() return with an exception, Processor will first notify other nodes through the abort channel,
+  // then enter the hosted mode by co_await this lazy
+  virtual async_simple::coro::Lazy<void> hosted_mode() { co_return; }
+
+  async_simple::coro::Lazy<void> close_input(Channel<T> &input, size_t &input_count) {
+    if (input) {
+      while (true) {
+        std::optional<T> value = co_await input.GetQueue().Pop();
+        if (!value.has_value()) {
+          assert(input_count_ > 0);
+          --input_count_;
+          if (input_count_ == 0) {
+            co_return;
+          }
+        }
+      }
+    }
+    co_return;
+  }
+
+  async_simple::coro::Lazy<void> close_output(Channel<T> &output) {
+    if (output) {
+      co_await output.GetQueue().Push(std::optional<T>{});
+    }
+    co_return;
+  }
 
   // co_await work() and handle exception
   async_simple::coro::Lazy<void> work_with_exception() {
-    std::string exception_message;
     try {
       before_work();
     } catch (const std::exception &e) {
-      if (!abort_port) {
-        std::cerr << "node " << GetId() << " : " << GetName() << "throw exception before work : " << e.what()
-                  << std::endl;
-        std::abort();
-      }
-      exception_message = e.what();
-    }
-    if (!exception_message.empty()) {
-      co_await abort_port.GetQueue().TryPush(0);
-      throw std::runtime_error(exception_message);
+      std::cerr << "node " << GetId() << " : " << GetName() << " throw exception before work : " << e.what()
+                << std::endl;
+      std::abort();
     }
     async_simple::Try<void> result = co_await work().coAwaitTry();
     if (result.hasError()) {
@@ -99,8 +118,9 @@ class Processor {
                   << exception_msg << std::endl;
         std::abort();
       }
-      // We only need TryPush to notify the exit information
+      // We only need to TryPush to notify the exit information
       co_await abort_port.GetQueue().TryPush(0);
+      co_await hosted_mode();
       std::rethrow_exception(result.getException());
     }
     // after_work will be called without exception occur
@@ -110,68 +130,51 @@ class Processor {
     co_return;
   }
 
-  // Attempt to read data from input, and if it fails, attempt to read data from abort_channel.
-  // Use co_await Yield{} to give up cpu for the first yield_count_ of failed reads.
-  // If the yield_count_ exceeds the limit, use co_await sleep to give up cpu.
   async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
     while (true) {
-      std::optional<T> value;
-      if (abort_port) {
-        while (true) {
-          async_simple::Try<std::optional<T>> v = co_await input.GetQueue().TryPop();
-          if (v.available()) {
-            yield_count_ = 0;
-            value = std::move(v).value();
-            break;
-          } else {
-            async_simple::Try<std::optional<int>> v = co_await abort_port.GetQueue().TryPop();
-            if (v.available()) {
-              throw std::runtime_error("throw by abort channel");
-            }
-            if (yield_count_ < max_yeild_count) {
-              ++yield_count_;
-              co_await async_simple::coro::Yield{};
-            } else {
-              co_await async_simple::coro::sleep(std::chrono::milliseconds(5));
-            }
-          }
+      std::optional<T> value = co_await input.GetQueue().Pop();
+      bool is_eof = !value.has_value();
+      bool should_return = false;
+      if (is_eof) {
+        assert(input_count > 0);
+        --input_count;
+        if (input_count == 0) {
+          // write EOF information back into input so that other nodes reading this queue can also read EOF information
+          co_await Push(std::optional<T>{}, input);
+          input.reset();
+          should_return = true;
         }
       } else {
-        value = co_await input.GetQueue().Pop();
+        should_return = true;
       }
-      if (value.has_value()) {
+      // if it is the last EOF information, the abort_port should not be checked, otherwise it may cause the output
+      // channel to lose EOF information.
+      if (should_return && is_eof) {
         co_return value;
       }
-      assert(input_count > 0);
-      --input_count;
-      if (input_count == 0) {
-        co_await Push(std::optional<T>{}, input);
+      if (abort_port) {
+        async_simple::Try<std::optional<int>> abort_info = co_await abort_port.GetQueue().TryPop();
+        if (abort_info.available()) {
+          throw std::runtime_error("throw by abort channel");
+        }
+      }
+      if (should_return) {
         co_return value;
       }
     }
   }
 
   async_simple::coro::Lazy<void> Push(std::optional<T> &&v, Channel<T> &output) {
+    bool is_eof = !v.has_value();
+    co_await output.GetQueue().Push(std::move(v));
+    if (is_eof) {
+      output.reset();
+    }
     if (abort_port) {
-      while (true) {
-        bool succ = co_await output.GetQueue().TryPush(std::move(v));
-        if (succ == true) {
-          yield_count_ = 0;
-          co_return;
-        }
-        async_simple::Try<std::optional<int>> v = co_await abort_port.GetQueue().TryPop();
-        if (v.available()) {
-          throw std::runtime_error("throw by abort channel");
-        }
-        if (yield_count_ < max_yeild_count) {
-          ++yield_count_;
-          co_await async_simple::coro::Yield{};
-        } else {
-          co_await async_simple::coro::sleep(std::chrono::milliseconds(5));
-        }
+      async_simple::Try<std::optional<int>> abort_info = co_await abort_port.GetQueue().TryPop();
+      if (abort_info.available()) {
+        throw std::runtime_error("throw by abort channel");
       }
-    } else {
-      co_await output.GetQueue().Push(std::move(v));
     }
     co_return;
   }
@@ -221,7 +224,6 @@ class Processor {
   // input_channel will be written by input_count_ Processors, so it needs to read input_count_ EOF information to
   // complete the reading.
   size_t input_count_;
-  size_t yield_count_;
 };
 
 template <typename T>

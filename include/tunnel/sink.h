@@ -42,6 +42,12 @@ class Sink : public Processor<T> {
     }
   }
 
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    Channel<T>& input = this->GetInputPort();
+    co_await this->close_input(input, this->input_count_);
+    co_return;
+  }
+
   virtual async_simple::coro::Lazy<void> consume(T &&value) = 0;
 };
 

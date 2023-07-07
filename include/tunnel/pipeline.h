@@ -40,25 +40,10 @@ namespace tunnel {
 
 struct PipelineOption {
   // 是否为Processor节点绑定abort_channel。
-  // Pipeline提供两种调度模式:
-  //   1. 当绑定abort_channel时，节点间通过tryPush/tryPop轮询来读写数据，
-  //   如果读写失败则 Yield/sleep让出cpu，这种方式支持Processor节点的异常捕获并传递给函数Pipeline::Run的返回值。
-  //   2. 当不绑定abort_channel时，节点间通过Push/Pop来读写数据，
-  //   如果当前队列满/空则会导致Processor挂起，这种方式不支持异常传递，某个节点抛出异常后tunnel会调用std::abort结束进程。
-  // 原因：通过Push/Pop读写数据时，Processor会被挂起到条件变量上，这时如果某个节点抛出异常通知其他节点尽早结束时，
-  // 挂起到条件变量上的Processor无法被唤醒，也无法有效回收协程资源。
-
-  // bind abort_channel for Processor or not.
-  // Pipeline provides two scheduling modes:
-  //   1. When binding abort_channel, Processor use tryPush/tryPop polling to read and write data.
-  //   If read and write fails, the Processor will give up cpu through Yield/sleep. This mode supports the
-  //   exception capture of the Processor and passes it to the return value of the function Pipeline::Run.
-  //   2. When not binding abort_channel, Processor use Push/Pop to read and write data.
-  //   If current queue is full/empty, it will cause the Processor suspend. This method does not support exception
-  //   passing. After a node throws an exception, tunnel will call std::abort to exit the process.
-  // Reason: When reading and writing data through Push/Pop, the Processor will be suspended on the condition variable.
-  // If a node throws an exception to notify other nodes to end as soon as possible, the Processor suspended on the
-  // condition variable cannot be awakened and cannot effectively reclaim process resources.
+  // 当节点抛出异常时：
+  // * 如果不绑定abort_channel则会调用std::abort终止程序；
+  // * 如果绑定abort_channel，则抛出异常的节点会将退出信息传递给其他节点，当其他节点通过abort_channel读到退出信息后也会抛出异常。
+  //   节点抛的异常会被底层的调度协程捕获，进入托管模式，该模式下节点尝试读取input_channel的数据直到读到EOF信息，然后向output_channel写入EOF信息并退出。
   bool bind_abort_channel = false;
   // Processor节点间队列的容量。
   // MergePipeline后这个值会被设置为0，表示新的Pipeline中有多种容量的队列

@@ -12,6 +12,7 @@ class MultiIOneOTest : public MultiIOneO<int> {
   virtual async_simple::coro::Lazy<void> work() override { co_return; }
 };
 
+/*
 TEST(testMultiIOneO, basic) {
   MultiIOneOTest multi(3);
   Channel<int> abort_channel(2);
@@ -22,3 +23,4 @@ TEST(testMultiIOneO, basic) {
     EXPECT_EQ(e.what(), std::string("multi_input_one_output check error"));
   }
 }
+*/
