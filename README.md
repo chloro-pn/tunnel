@@ -73,7 +73,7 @@ Please read the doc directory and example directory to learn the API usage for t
 5. Support active stop of execution [done with throw exception]
 6. Exception handling during execution [done]
 7. Implementing a high-performance Executor [**doing**]
-8. Support for extension of Pipeline at runtime
+8. Support for extension of Pipeline at runtime [**done with embed pipeline**]
 9. Support for distributed scheduling (support for network io based on async_simple first)
 
 ## License

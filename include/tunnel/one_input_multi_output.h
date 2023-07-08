@@ -50,7 +50,7 @@ class OneIMultiO : public Processor<T> {
 };
 
 template <typename T>
-inline void connect(OneIMultiO<T>& input, Processor<T>& output, size_t channel_size) {
+void connect(OneIMultiO<T>& input, Processor<T>& output, size_t channel_size) {
   Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(channel_size));
   input.AddOutputPort(channel);
   output.SetInputPort(channel);

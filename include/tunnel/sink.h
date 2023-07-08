@@ -30,6 +30,7 @@ class Sink : public Processor<T> {
  public:
   explicit Sink(const std::string& name = "sink") : Processor<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& input = this->GetInputPort();
     while (true) {
@@ -48,7 +49,8 @@ class Sink : public Processor<T> {
     co_return;
   }
 
-  virtual async_simple::coro::Lazy<void> consume(T &&value) = 0;
+ protected:
+  virtual async_simple::coro::Lazy<void> consume(T&& value) = 0;
 };
 
 }  // namespace tunnel

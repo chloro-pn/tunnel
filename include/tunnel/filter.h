@@ -35,6 +35,7 @@ class Filter : public Transform<T> {
  public:
   explicit Filter(const std::string &name = "filter") : Transform<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() {
     Channel<T> &input = this->GetInputPort();
     Channel<T> &output = this->GetOutputPort();
@@ -52,6 +53,7 @@ class Filter : public Transform<T> {
     }
   }
 
+ protected:
   virtual bool filter(const T &v) = 0;
 };
 

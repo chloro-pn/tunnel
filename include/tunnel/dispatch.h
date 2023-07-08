@@ -33,6 +33,9 @@ namespace tunnel {
 template <typename T>
 class Dispatch : public OneIMultiO<T> {
  public:
+  explicit Dispatch(size_t size, const std::string& name = "dispatch") : OneIMultiO<T>(name, size) {}
+
+ private:
   virtual async_simple::coro::Lazy<void> work() {
     Channel<T>& input = this->GetInputPort();
     while (true) {
@@ -51,8 +54,7 @@ class Dispatch : public OneIMultiO<T> {
     }
   }
 
-  explicit Dispatch(size_t size, const std::string& name = "dispatch") : OneIMultiO<T>(name, size) {}
-
+ protected:
   virtual size_t dispatch(const T& value) = 0;
 };
 

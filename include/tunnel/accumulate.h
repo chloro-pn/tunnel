@@ -34,6 +34,7 @@ class Accumulate : public Transform<T> {
  public:
   explicit Accumulate(const std::string& name = "accumulate") : Transform<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& input = this->GetInputPort();
     Channel<T>& output = this->GetOutputPort();
@@ -50,6 +51,7 @@ class Accumulate : public Transform<T> {
     }
   }
 
+ protected:
   virtual async_simple::coro::Lazy<void> consume(T&& v) = 0;
   virtual async_simple::coro::Lazy<T> generate() = 0;
 };

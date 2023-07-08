@@ -30,6 +30,7 @@ class Transform : public Processor<T> {
  public:
   explicit Transform(const std::string& name = "transform") : Processor<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> hosted_mode() override {
     Channel<T>& input = this->GetInputPort();
     Channel<T>& output = this->GetOutputPort();

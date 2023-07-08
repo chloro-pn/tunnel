@@ -37,6 +37,7 @@ class SimpleTransform : public Transform<T> {
  public:
   explicit SimpleTransform(const std::string &name = "simple_transform") : Transform<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T> &input = this->GetInputPort();
     Channel<T> &output = this->GetOutputPort();
@@ -52,6 +53,7 @@ class SimpleTransform : public Transform<T> {
     }
   }
 
+ protected:
   virtual async_simple::coro::Lazy<T> transform(T &&value) = 0;
 };
 
@@ -70,6 +72,7 @@ class NoOpTransform : public SimpleTransform<T> {
 
   NoOpTransform() : SimpleTransform<T>("no_op") {}
 
+ private:
   virtual async_simple::coro::Lazy<T> transform(T &&value) override { co_return std::move(value); }
 };
 

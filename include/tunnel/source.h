@@ -31,6 +31,7 @@ class Source : public Processor<T> {
  public:
   explicit Source(const std::string& name = "source") : Processor<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T> &output = this->GetOutputPort();
     while (true) {
@@ -49,6 +50,7 @@ class Source : public Processor<T> {
     co_return;
   }
 
+ protected:
   virtual async_simple::coro::Lazy<std::optional<T>> generate() = 0;
 };
 

@@ -33,6 +33,7 @@ class DumpSink : public Sink<T> {
  public:
   explicit DumpSink(const std::string& name = "dump_sink") : Sink<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> consume(T &&value) override {
     T v = std::move(value);
     co_return;

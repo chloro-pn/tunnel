@@ -44,6 +44,9 @@ static uint64_t GenerateId() {
 
 constexpr size_t max_yeild_count = 10;
 
+template <typename T>
+class Pipeline;
+
 /*
  * Processor is the basic scheduling unit in the pipeline. Each instance of Processor
  * will be assigned a unique ID. In addition, users can specify a name for it to
@@ -55,44 +58,18 @@ constexpr size_t max_yeild_count = 10;
  */
 template <typename T>
 class Processor {
- public:
+ protected:
+  friend class Pipeline<T>;
+
   explicit Processor(const std::string &name = "")
       : processor_id_(detail::GenerateId()), name_(name), input_count_(0) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
-
-  // perform some checks before co_await work(), you can throw an exception to terminate execution
-  virtual void before_work() {}
-
-  // be called after co_await work(), look at channel_sink for detail.
-  virtual async_simple::coro::Lazy<void> after_work() { co_return; }
 
   // after co_await work() return with an exception, Processor will first notify other nodes through the abort channel,
   // then enter the hosted mode by co_await this lazy
   virtual async_simple::coro::Lazy<void> hosted_mode() { co_return; }
-
-  async_simple::coro::Lazy<void> close_input(Channel<T> &input, size_t &input_count) {
-    if (input) {
-      while (true) {
-        std::optional<T> value = co_await input.GetQueue().Pop();
-        if (!value.has_value()) {
-          assert(input_count_ > 0);
-          --input_count_;
-          if (input_count_ == 0) {
-            co_return;
-          }
-        }
-      }
-    }
-    co_return;
-  }
-
-  async_simple::coro::Lazy<void> close_output(Channel<T> &output) {
-    if (output) {
-      co_await output.GetQueue().Push(std::optional<T>{});
-    }
-    co_return;
-  }
 
   // co_await work() and handle exception
   async_simple::coro::Lazy<void> work_with_exception() {
@@ -130,6 +107,7 @@ class Processor {
     co_return;
   }
 
+ protected:
   async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
     while (true) {
       std::optional<T> value = co_await input.GetQueue().Pop();
@@ -179,17 +157,48 @@ class Processor {
     co_return;
   }
 
+  // perform some checks before co_await work(), you can throw an exception to terminate execution
+  virtual void before_work() {}
+
+  // be called after co_await work(), look at channel_sink for detail.
+  virtual async_simple::coro::Lazy<void> after_work() { co_return; }
+
+  async_simple::coro::Lazy<void> close_input(Channel<T> &input, size_t &input_count) {
+    if (input) {
+      while (true) {
+        std::optional<T> value = co_await input.GetQueue().Pop();
+        if (!value.has_value()) {
+          assert(input_count_ > 0);
+          --input_count_;
+          if (input_count_ == 0) {
+            co_return;
+          }
+        }
+      }
+    }
+    co_return;
+  }
+
+  async_simple::coro::Lazy<void> close_output(Channel<T> &output) {
+    if (output) {
+      co_await output.GetQueue().Push(std::optional<T>{});
+    }
+    co_return;
+  }
+
+ private:
+  // can only be called by Pipeline.
+  void BindAbortChannel(const Channel<int> &abort) { abort_port = abort; }
+
+ public:
+  virtual ~Processor() {}
+
   void SetInputPort(const Channel<T> &input) {
     input_port = input;
     ++input_count_;
   }
 
   void SetOutputPort(const Channel<T> &output) { output_port = output; }
-
-  // can only be called by Pipeline.
-  void BindAbortChannel(const Channel<int> &abort) { abort_port = abort; }
-
-  virtual ~Processor() {}
 
   uint64_t &GetId() noexcept { return processor_id_; }
 
@@ -227,14 +236,14 @@ class Processor {
 };
 
 template <typename T>
-inline void connect(Processor<T> &input, Processor<T> &output, size_t channel_size) {
+void connect(Processor<T> &input, Processor<T> &output, size_t channel_size) {
   Channel<T> channel(std::make_shared<BoundedQueue<std::optional<T>>>(channel_size));
   input.SetOutputPort(channel);
   output.SetInputPort(channel);
 }
 
 template <typename T>
-inline void connect(Processor<T> &input, Processor<T> &output, std::shared_ptr<BoundedQueue<std::optional<T>>> &queue) {
+void connect(Processor<T> &input, Processor<T> &output, std::shared_ptr<BoundedQueue<std::optional<T>>> &queue) {
   Channel<T> channel(queue);
   input.SetOutputPort(channel);
   output.SetInputPort(channel);

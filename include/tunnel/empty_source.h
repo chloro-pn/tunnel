@@ -31,6 +31,7 @@ class EmptySource : public Source<T> {
  public:
   explicit EmptySource(const std::string& name = "empty_source") : Source<T>(name) {}
 
+ private:
   virtual async_simple::coro::Lazy<std::optional<T>> generate() override { co_return std::optional<T>{}; }
 };
 

@@ -36,6 +36,7 @@ class Fork : public OneIMultiO<T> {
   explicit Fork(size_t size, const std::string& name = "fork")
       : OneIMultiO<T>(name, size), copy_([](const T& v) { return v; }) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& input = this->GetInputPort();
     while (true) {

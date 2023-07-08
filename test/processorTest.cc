@@ -15,6 +15,7 @@
  */
 
 #include "gtest/gtest.h"
+#include "test_define.h"
 #include "tunnel/processor.h"
 
 using namespace tunnel;

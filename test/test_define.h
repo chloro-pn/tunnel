@@ -19,6 +19,9 @@
 
 #include <functional>
 
+#define protected public
+#define private public
+
 #include "async_simple/Try.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "async_simple/executors/SimpleExecutor.h"

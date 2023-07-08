@@ -19,6 +19,7 @@ class ChannelSink : public Sink<T> {
     output_channel = channel;
   }
 
+ private:
   virtual void before_work() {
     Channel<T>& output_channel = this->GetOutputPort();
     if (!output_channel) {

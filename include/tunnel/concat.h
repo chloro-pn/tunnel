@@ -34,6 +34,7 @@ class Concat : public MultiIOneO<T> {
  public:
   explicit Concat(size_t input_size, const std::string& name = "concat") : MultiIOneO<T>(name, input_size) {}
 
+ private:
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& output = this->GetOutputPort();
     for (size_t i = 0; i < this->Size(); ++i) {

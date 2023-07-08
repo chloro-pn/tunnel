@@ -19,6 +19,7 @@ class ChannelSource : public Source<T> {
     input_channel = input;
   }
 
+ private:
   virtual void before_work() override {
     Channel<T>& input_channel = this->GetInputPort();
     if (!input_channel) {
