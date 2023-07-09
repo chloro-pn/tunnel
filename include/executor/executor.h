@@ -64,7 +64,13 @@ class TunnelExecutor : public Executor {
     auto id = GetCurrentId();
     size_t worker_index = 0;
     if (id->second == this) {
-      worker_index = id->first;
+      // 25%的几率丢给随机的worker处理。
+      size_t rn = GetRandomNumber(0, 3);
+      if (rn == 0) {
+        worker_index = GetRandomNumber(0, GetThreadNum() - 1);
+      } else {
+        worker_index = id->first;
+      }
     } else {
       worker_index = GetRandomNumber(0, GetThreadNum() - 1);
     }
@@ -86,6 +92,23 @@ class TunnelExecutor : public Executor {
 
   size_t GetThreadNum() const noexcept { return thread_num_; }
 
+  bool TryPopStartFrom(size_t index, Func& func) {
+    bool succ = false;
+    for (size_t i = 0; i < GetThreadNum(); ++i) {
+      size_t steal_worker_id = (index + i) % GetThreadNum();
+      succ = task_queue_[steal_worker_id]->try_pop(func);
+      if (succ == true) {
+        break;
+      }
+    }
+    return succ;
+  }
+
+  void WakeUpNextWorker(size_t index) {
+    size_t next_id = (index + 1) % GetThreadNum();
+    cvs_[next_id]->notify_one();
+  }
+
   void WorkerMain(size_t worker_id, std::mutex& init_mut, std::condition_variable& init_cv, size_t& finished) {
     auto id = GetCurrentId();
     id->first = worker_id;
@@ -97,15 +120,9 @@ class TunnelExecutor : public Executor {
     bool stop_when_try_pop_failed = false;
     while (true) {
       Func func;
-      bool succ = false;
-      for (size_t i = 0; i < GetThreadNum(); ++i) {
-        size_t steal_worker_id = (worker_id + i) % GetThreadNum();
-        succ = task_queue_[steal_worker_id]->try_pop(func);
-        if (succ == true) {
-          break;
-        }
-      }
+      bool succ = TryPopStartFrom(worker_id, func);
       if (succ == true) {
+        WakeUpNextWorker(worker_id);
         func();
         continue;
       } else {
@@ -113,7 +130,7 @@ class TunnelExecutor : public Executor {
           return;
         }
         std::unique_lock lock(*muts_[worker_id]);
-        cvs_[worker_id]->wait(lock, [&]() { return this->stop_ == true || task_queue_[worker_id]->try_pop(func); });
+        cvs_[worker_id]->wait(lock, [&]() { return this->stop_ == true || TryPopStartFrom(worker_id, func); });
         if (stop_ == true) {
           stop_when_try_pop_failed = true;
         } else {

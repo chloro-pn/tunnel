@@ -194,6 +194,9 @@ class Pipeline {
     if (leaves_.empty() == false) {
       throw std::runtime_error("try to run incompleted pipeline");
     }
+    if (nodes_.empty() == true) {
+      throw std::runtime_error("try to run empty pipeline");
+    }
     std::vector<async_simple::coro::RescheduleLazy<void>> lazies;
     async_simple::Executor* ex = co_await async_simple::CurrentExecutor{};
     if (ex == nullptr) {
