@@ -34,7 +34,7 @@ Firstly, you need to understand several basic concepts:
 
 * **`port`**：`port` is a tool for transferring data between `Processor`, and some `ports` share the same queue. `port` and are divided into `input_port` and `output_port`, `input_port` reads data from the queue, and `output_port` writes data to the queue.
 
-* **`pipeline`**：a `pipeline` is composed of multiple `processors`. These `processors` are connected through `port` and have the structure of a Directed Acyclic Graph. The `pipeline` can be sent to the `Executor` for scheduling and execution.
+* **`pipeline`**：a `pipeline` is composed of multiple `processors`. These `processors` are connected through queue and have the structure of a Directed Acyclic Graph. The `pipeline` can be sent to the `Executor` for scheduling and execution.
 
 * **`Executor`**：the `Executor` concept in `async_simple`.
 
@@ -63,7 +63,80 @@ The inheritance relationship of node types is as follows. Types marked in **red*
 ![node_type](https://github.com/chloro-pn/draw_io_repo/blob/master/nodes.drawio.svg)
 
 ## Doc
-Please read the doc directory and example directory to learn the API usage for this project.
+
+**hello world**
+
+here is a Hello World program:
+```c++
+#include <functional>
+#include <iostream>
+#include <string>
+
+#include "async_simple/coro/SyncAwait.h"
+#include "async_simple/executors/SimpleExecutor.h"
+#include "tunnel/pipeline.h"
+#include "tunnel/sink.h"
+#include "tunnel/source.h"
+
+using namespace tunnel;
+
+class MySink : public Sink<std::string> {
+ public:
+  virtual async_simple::coro::Lazy<void> consume(std::string &&value) override {
+    std::cout << value << std::endl;
+    co_return;
+  }
+};
+
+class MySource : public Source<std::string> {
+ public:
+  virtual async_simple::coro::Lazy<std::optional<std::string>> generate() override {
+    if (eof == false) {
+      eof = true;
+      co_return std::string("hello world");
+    }
+    co_return std::optional<std::string>{};
+  }
+  bool eof = false;
+};
+
+int main() {
+  Pipeline<std::string> pipe;
+  pipe.AddSource(std::make_unique<MySource>());
+  pipe.SetSink(std::make_unique<MySink>());
+  async_simple::executors::SimpleExecutor ex(2);
+  async_simple::coro::syncAwait(std::move(pipe).Run().via(&ex));
+  return 0;
+}
+```
+
+As you can see, users need to inherit some Processors to implement custom processing logic, then combine these Processors in a certain structure through Pipeline, and finally start executing the Pipeline.
+
+For example, for the Source node, only the generate() method needs to be rewritten to generate data. Users need to ensure that an empty `std::optional<T>{}` representing EOF information is ultimately returned, otherwise the Pipeline will not stop executing; For Sink nodes, the consume() method needs to be rewritten to consume data.
+
+For the use of more Processor types, users can read the source files in the tunnel directory.
+
+**about exception**
+
+If a Processor throws an exception during the pipeline running, tunnel may call `std::abort` to abort the process (`bind_abort_channel == false`), or catch the exception and pass the exit information to other Processors. The Processor receiving the exit information will enter managed mode, and user logic will not be called again in managed mode. It simply reads data from upstream and discards it, After all upstream data is read, EOF information is written to downstream and execution ends.
+
+**about expand pipeline at runtime**
+
+Users can construct and run a new pipeline in the Processor's processing logic, and connect the data streams of two pipelines through `ChannelSource` and `ChannelSink`. This feature is useful in certain situations, such as when you need to decide how to handle the remaining data based on the data generated during the pipeline execution process.
+
+There is a simple example in example/embedpipeline.cc.
+
+**about pipeline interface**
+
+tunnel will assign a unique ID to each Processor instance, through which users and tunnel exchange pipeline structure information.
+
+The API of pipeline follows the principle of only allowing post nodes to be added to leaf nodes. Leaf nodes refer to non-sink nodes that have not yet specified an output_port, for example, there is an empty pipeline:
+* Firstly, add a source node (id == 1) through AddSource, so there is only one leaf node 1 in the pipeline.
+* Then, by using AddTransform, add a post transform node (id == 2) to the source node , and the current leaf node in the pipeline will become 2.
+* Next, add another source node (id == 3) through AddSource, so there are two leaf nodes in the pipeline now, 2 and 3.
+* Finally, add a shared sink post node (id == 4) to all current leaf nodes ( 2 and 3 ) through SetSink. At this point, no leaf nodes exist in the pipeline. A pipeline without leaf nodes is called complete, and only complete pipelines can be executed.
+
+Please read the content in the doc directory and example directory to learn about the API usage of this project.
 
 ## Todo
 1. Support for more types of nodes [**doing**]
@@ -72,8 +145,8 @@ Please read the doc directory and example directory to learn the API usage for t
 4. Schedule event collection [**doing**]
 5. Support active stop of execution [done with throw exception]
 6. Exception handling during execution [done]
-7. Implementing a high-performance Executor [**doing**]
-8. Support for extension of Pipeline at runtime [**done with embed pipeline**]
+7. Implementing a high-performance Executor [done]
+8. Support for extension of Pipeline at runtime [done]
 9. Support for distributed scheduling (support for network io based on async_simple first)
 
 ## License

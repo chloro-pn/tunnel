@@ -20,12 +20,14 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 ## Dependencies
 * async_simple
 * googletest
+* chriskohlhoff/asio
+* rigtorp/MPMCQueue
 
 ## Design
 首先理解几个基本概念：
 * **`Processor`**：`Processor`是调度执行的基本单位，每个`Processor`会持有0个、1个或者多个`input_port`，以及0个、1个或者多个`output_port`。但是不会同时持有0个`input_port`和`output_port`（孤立节点没有意义）。
 * **`port`**：`port`是`Processor`间传递数据的工具，不同的`port`间共享一条队列，`port`分为`input_port`和`output_port`，`input_port`从队列中读取数据，`output_port`向队列中写入数据。
-* **`pipeline`**：一个`pipeline`由多个`Processor`组成，这些`Processor`通过`port`连接，具有有向无环图的结构，`pipeline`可以被交由`Executor`调度执行。
+* **`pipeline`**：一个`pipeline`由多个`Processor`组成，这些`Processor`通过队列连接，具有有向无环图的结构，`pipeline`可以被交由`Executor`调度执行。
 * **`Executor`**：`async_simple`中的`Executor`。
 
 以上是本项目中最基本的四个概念，接下来是一些派生概念：
@@ -51,6 +53,75 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 ![node_type](https://github.com/chloro-pn/draw_io_repo/blob/master/nodes.drawio.svg)
 
 ## Doc
+
+**hello world**
+
+以下是一个Hello World程序：
+```c++
+#include <functional>
+#include <iostream>
+#include <string>
+
+#include "async_simple/coro/SyncAwait.h"
+#include "async_simple/executors/SimpleExecutor.h"
+#include "tunnel/pipeline.h"
+#include "tunnel/sink.h"
+#include "tunnel/source.h"
+
+using namespace tunnel;
+
+class MySink : public Sink<std::string> {
+ public:
+  virtual async_simple::coro::Lazy<void> consume(std::string &&value) override {
+    std::cout << value << std::endl;
+    co_return;
+  }
+};
+
+class MySource : public Source<std::string> {
+ public:
+  virtual async_simple::coro::Lazy<std::optional<std::string>> generate() override {
+    if (eof == false) {
+      eof = true;
+      co_return std::string("hello world");
+    }
+    co_return std::optional<std::string>{};
+  }
+  bool eof = false;
+};
+
+int main() {
+  Pipeline<std::string> pipe;
+  pipe.AddSource(std::make_unique<MySource>());
+  pipe.SetSink(std::make_unique<MySink>());
+  async_simple::executors::SimpleExecutor ex(2);
+  async_simple::coro::syncAwait(std::move(pipe).Run().via(&ex));
+  return 0;
+}
+```
+如你所见，用户需要继承部分Processor以实现自定义处理逻辑，然后通过Pipeline将这些Processor按照某种结构组合起来，最后通过Pipeline的Run函数开始执行。
+例如，对于Source节点，只需要重写generate()方法来产生数据，用户需要确保最终会返回一个空的optional表示EOF信息，否则Pipeline会一直执行；对于Sink节点，需要重写consume()方法来消费数据。
+对于更多Processor类型的使用，用户可以自行阅读tunnel目录下的源文件，
+
+**about exception**
+
+如果在pipeline运行过程中Processor抛出异常，根据构造Pipeline时传递的参数，tunnel可能会调用std::abort中止进程（`bind_abort_channel == false`)，或者捕获异常并将退出信息传递给其他Processor，接收到退出信息的Processor会进入托管模式，托管模式下不会再调用用户逻辑，只是简单的从上游读取数据并丢弃，当所有上游数据读取完毕后，向下游写入EOF信息，最后结束执行。
+
+**about expand pipeline at runtime**
+
+用户可以在Processor的处理逻辑中构造并调度一个新的Pipeline，并且可以通过ChannelSource和ChannelSink连通两个pipeline的数据流。在某些情况下这个特性很有用，例如你需要根据pipeline执行过程中产生的一些数据来决定如何处理剩余的数据。
+example/embed_pipeline.cc中有一个简单的例子。
+
+
+**about pipeline interface**
+
+tunnel会为每个Processor实例分配一个唯一的id，用户与tunnel通过此id交换pipeline的结构信息。
+pipeline的api遵循这样的原则：只允许为叶节点添加后置节点。叶节点指的是还没有指定output_port的pipeline中的非sink节点，例如对于一个空的pipeline：
+* 首先通过AddSource添加一个source节点，它的id为1，那么pipeline中只有一个叶节点1。
+* 然后通过AddTransform为source节点添加一个transform后置节点，它的id为2，那么pipeline中现在的叶节点变为2。
+* 接着通过AddSource添加另一个source节点，它的id为3，那么pipeline中现在有两个叶节点，2和3。
+* 最后通过SetSink为当前所有的叶节点添加一个共享的sink后置节点, 它的id为4，此时pipeline中不存在叶节点。不存在叶节点的pipeline被称为完整的，只有完整的pipeline才可以被执行。
+
 请阅读doc目录和example目录学习本项目的api使用。
 
 ## Todo
@@ -60,8 +131,8 @@ Tunnel是一个跨平台、轻量级、适配性强的基于c++20 coroutine的�
 4. 调度事件收集 [**doing**]
 5. 支持中止执行 [done with throw exception]
 6. 执行过程中的异常处理 [done]
-7. 实现一个高性能的Executor [**doing**]
-8. 支持运行时扩展Pipeline
+7. 实现一个高性能的Executor [done]
+8. 支持运行时扩展Pipeline [done]
 9. 支持分布式调度（首先需要支持基于coroutine的网络io）
 
 

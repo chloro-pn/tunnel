@@ -44,9 +44,20 @@ struct PipelineOption {
   // * 如果不绑定abort_channel则会调用std::abort终止程序；
   // * 如果绑定abort_channel，则抛出异常的节点会将退出信息传递给其他节点，当其他节点通过abort_channel读到退出信息后也会抛出异常。
   //   节点抛的异常会被底层的调度协程捕获，进入托管模式，该模式下节点尝试读取input_channel的数据直到读到EOF信息，然后向output_channel写入EOF信息并退出。
+
+  // bind abort_channel for Processor or not.
+  // when Processor throws an exception:
+  // * if bind_abort_channel == false, std::abort() will be called to terminate the program;
+  // * otherwise, the Processor that throws an exception will pass the exit information to other Processors,
+  //   and when other Processors read the exit information through the abort_channel, they will also throw the
+  //   exception. The exceptions thrown by the Processor will be captured by the underlying scheduling coroutine and
+  //   enter managed mode. in this mode, the Processor attempts to read the input_channel until it receives EOF
+  //   information, then writes EOF information to the output_channel and exits.
   bool bind_abort_channel = false;
   // Processor节点间队列的容量。
   // MergePipeline后这个值会被设置为0，表示新的Pipeline中有多种容量的队列
+
+  // The capacity of queues between Processors.
   size_t channel_size = default_channel_size;
   std::string name = "default";
 };
