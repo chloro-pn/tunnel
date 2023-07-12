@@ -31,6 +31,7 @@
 #include "async_simple/coro/Collect.h"
 #include "tunnel/concat.h"
 #include "tunnel/dispatch.h"
+#include "tunnel/event_collector.h"
 #include "tunnel/fork.h"
 #include "tunnel/simple_transform.h"
 #include "tunnel/sink.h"
@@ -213,14 +214,16 @@ class Pipeline {
     if (ex == nullptr) {
       throw std::runtime_error("pipeline can not run without executor");
     }
+    event_collector_.Start();
     Channel<int> abort_channel(10);
     for (auto&& node : nodes_) {
       if (option_.bind_abort_channel) {
         node.second->BindAbortChannel(abort_channel);
       }
-      lazies.emplace_back(std::move(node.second)->work_with_exception().via(ex));
+      lazies.emplace_back(std::move(node.second)->work_with_exception().via(ex).setLazyLocal(&event_collector_));
     }
     auto results = co_await async_simple::coro::collectAllPara(std::move(lazies));
+    event_collector_.Collect(EventInfo::PipelineEnd());
     co_return results;
   }
 
@@ -278,6 +281,7 @@ class Pipeline {
   // record sources and sinks in the order of registration to support the merge of pipelines.
   std::vector<uint64_t> sources_;
   std::vector<uint64_t> sinks_;
+  EventCollector event_collector_;
 
   void add_edge(uint64_t from, uint64_t to) { dags_[from].insert(to); }
 
@@ -435,6 +439,7 @@ Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right) {
   // merge sources and sinks
   new_pipeline.sources_ = left.sources_;
   new_pipeline.sinks_ = right.sinks_;
+  new_pipeline.event_collector_ = std::move(left.event_collector_);
   return new_pipeline;
 }
 

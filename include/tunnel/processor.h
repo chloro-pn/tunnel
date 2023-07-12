@@ -31,6 +31,7 @@
 #include "async_simple/coro/Lazy.h"
 #include "async_simple/coro/Sleep.h"
 #include "tunnel/channel.h"
+#include "tunnel/event_collector.h"
 
 namespace tunnel {
 
@@ -80,6 +81,9 @@ class Processor {
                 << std::endl;
       std::abort();
     }
+    EventCollector *event_collector = co_await async_simple::coro::LazyLocals<EventCollector>{};
+    event_collector->Collect(EventInfo::WorkStart(GetId(), GetName(), co_await async_simple::CurrentExecutor{}));
+
     async_simple::Try<void> result = co_await work().coAwaitTry();
     if (result.hasError()) {
       std::string exception_msg;
@@ -97,6 +101,8 @@ class Processor {
       }
       // We only need to TryPush to notify the exit information
       co_await abort_port.GetQueue().TryPush(0);
+
+      event_collector->Collect(EventInfo::HostedMode(GetId(), GetName(), co_await async_simple::CurrentExecutor{}));
       co_await hosted_mode();
       std::rethrow_exception(result.getException());
     }
@@ -104,6 +110,7 @@ class Processor {
     else {
       co_await after_work();
     }
+    event_collector->Collect(EventInfo::WorkEnd(GetId(), GetName(), co_await async_simple::CurrentExecutor{}));
     co_return;
   }
 
