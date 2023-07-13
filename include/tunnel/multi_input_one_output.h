@@ -22,6 +22,7 @@ class MultiIOneO : public Processor<T> {
 
   void AddInputPort(const Channel<T>& channel) { inputs_.emplace_back(channel); }
 
+ private:
   virtual void before_work() {
     if (inputs_.size() != input_size_) {
       // todo : use fmt.
@@ -40,10 +41,18 @@ class MultiIOneO : public Processor<T> {
     co_return;
   }
 
+  // API
   size_t Size() const { return input_size_; }
 
  protected:
+  // API
   Channel<T>& GetChannel(size_t index) { return inputs_.at(index); }
+
+  // API
+  virtual async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T>& input) override {
+    size_t input_count = 1;
+    co_return co_await Processor<T>::Pop(input, input_count);
+  }
 
  private:
   std::vector<Channel<T>> inputs_;

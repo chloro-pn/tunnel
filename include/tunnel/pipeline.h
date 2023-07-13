@@ -52,8 +52,8 @@ struct PipelineOption {
   // * otherwise, the Processor that throws an exception will pass the exit information to other Processors,
   //   and when other Processors read the exit information through the abort_channel, they will also throw the
   //   exception. The exceptions thrown by the Processor will be captured by the underlying scheduling coroutine and
-  //   enter managed mode. in this mode, the Processor attempts to read the input_channel until it receives EOF
-  //   information, then writes EOF information to the output_channel and exits.
+  //   enter managed mode. In this mode, the Processor attempts to read the input_channel until it receives EOF
+  //   , then writes EOF to the output_channel and exits.
   bool bind_abort_channel = false;
   // Processor节点间队列的容量。
   // MergePipeline后这个值会被设置为0，表示新的Pipeline中有多种容量的队列

@@ -40,7 +40,7 @@ class Fork : public OneIMultiO<T> {
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& input = this->GetInputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop(input, this->input_count_);
+      std::optional<T> v = co_await this->Pop(input);
       if (!v.has_value()) {
         for (size_t index = 0; index < this->Size(); ++index) {
           Channel<T>& output = this->GetChannel(index);

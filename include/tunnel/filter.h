@@ -40,7 +40,7 @@ class Filter : public Transform<T> {
     Channel<T> &input = this->GetInputPort();
     Channel<T> &output = this->GetOutputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop(input, this->input_count_);
+      std::optional<T> v = co_await this->Pop(input);
       if (v.has_value()) {
         bool need_filter = filter(v.value());
         if (!need_filter) {

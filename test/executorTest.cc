@@ -16,7 +16,7 @@
 
 #include <atomic>
 
-#include "executor/executor.h"
+#include "executor/tunnel_executor.h"
 #include "gtest/gtest.h"
 
 using namespace tunnel;

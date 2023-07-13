@@ -54,12 +54,6 @@ class TunnelExecutor : public Executor {
     init_cv.wait(guard, [&]() { return finished == thread_num_ + 1; });
   }
 
-  static size_t GetRandomNumber(size_t begin, size_t end) {
-    static thread_local std::mt19937 generator(std::random_device{}());
-    std::uniform_int_distribution<int> distribution(static_cast<int>(begin), static_cast<int>(end));
-    return distribution(generator);
-  }
-
   virtual bool schedule(Func func) override {
     auto id = GetCurrentId();
     size_t worker_index = 0;
@@ -88,9 +82,40 @@ class TunnelExecutor : public Executor {
     return succ;
   }
 
-  virtual bool currentThreadInExecutor() const override { return GetCurrentId()->second == this; }
+  void Stop() {
+    timer_manager_.Stop();
+    for (size_t i = 0; i < GetThreadNum(); ++i) {
+      muts_[i]->lock();
+    }
+    stop_ = true;
+    for (size_t i = 0; i < GetThreadNum(); ++i) {
+      muts_[i]->unlock();
+      cvs_[i]->notify_one();
+    }
+    for (auto& work : workers_) {
+      work.join();
+    }
+  }
 
   size_t GetThreadNum() const noexcept { return thread_num_; }
+
+  ~TunnelExecutor() noexcept {
+    if (stop_ == false) {
+      Stop();
+    }
+  }
+
+  // for test.
+  void schedule_timer(Func func, Duration dur) { schedule(std::move(func), std::move(dur)); }
+
+  virtual bool currentThreadInExecutor() const override { return GetCurrentId()->second == this; }
+
+ private:
+  static size_t GetRandomNumber(size_t begin, size_t end) {
+    static thread_local std::mt19937 generator(std::random_device{}());
+    std::uniform_int_distribution<int> distribution(static_cast<int>(begin), static_cast<int>(end));
+    return distribution(generator);
+  }
 
   bool TryPopStartFrom(size_t index, Func& func) {
     bool succ = false;
@@ -140,30 +165,6 @@ class TunnelExecutor : public Executor {
       }
     }
   }
-
-  void Stop() {
-    timer_manager_.Stop();
-    for (size_t i = 0; i < GetThreadNum(); ++i) {
-      muts_[i]->lock();
-    }
-    stop_ = true;
-    for (size_t i = 0; i < GetThreadNum(); ++i) {
-      muts_[i]->unlock();
-      cvs_[i]->notify_one();
-    }
-    for (auto& work : workers_) {
-      work.join();
-    }
-  }
-
-  ~TunnelExecutor() noexcept {
-    if (stop_ == false) {
-      Stop();
-    }
-  }
-
-  // for test.
-  void schedule_timer(Func func, Duration dur) { schedule(std::move(func), std::move(dur)); }
 
  protected:
   virtual void schedule(Func func, Duration dur) override { timer_manager_.PushTimer(std::move(func), dur); }

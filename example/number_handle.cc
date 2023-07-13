@@ -2,7 +2,7 @@
 
 #include "async_simple/coro/Lazy.h"
 #include "async_simple/coro/SyncAwait.h"
-#include "async_simple/executors/SimpleExecutor.h"
+#include "executor/tunnel_executor.h"
 #include "tunnel/accumulate.h"
 #include "tunnel/dispatch.h"
 #include "tunnel/filter.h"
@@ -13,7 +13,6 @@
 
 using namespace tunnel;
 using namespace async_simple::coro;
-using namespace async_simple::executors;
 
 class NumSource : public Source<int> {
  public:
@@ -104,7 +103,7 @@ int main() {
   std::cout << "pipeline dump : " << std::endl;
   std::cout << pipeline.Dump() << std::endl;
 
-  SimpleExecutor ex(1);
+  tunnel::TunnelExecutor ex(1);
   syncAwait(std::move(pipeline).Run().via(&ex));
   std::cout << "the result should be " << 5050 * 2 + 2500 << std::endl;
   std::cout << "result : " << result << std::endl;

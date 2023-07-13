@@ -26,8 +26,8 @@ struct EventInfo {
   async_simple::Executor* ex_;
   uint64_t node_id_;
   std::string node_name_;
-  size_t input_channel_id_ = 0;
-  size_t output_channel_id_ = 0;
+  size_t input_channel_index_ = 0;
+  size_t output_channel_index_ = 0;
   EventType event_type_;
 
   EventInfo() = default;
@@ -69,6 +69,30 @@ struct EventInfo {
     ei.node_id_ = id;
     ei.node_name_ = name;
     ei.event_type_ = EventType::HOSTED_MODE;
+    return ei;
+  }
+
+  static EventInfo BeforeReadInput(uint64_t id, const std::string& name, async_simple::Executor* ex,
+                                   size_t input_index = 0) {
+    EventInfo ei;
+    ei.time_point_ = std::chrono::system_clock::now();
+    ei.ex_ = ex;
+    ei.node_id_ = id;
+    ei.node_name_ = name;
+    ei.input_channel_index_ = input_index;
+    ei.event_type_ = EventType::BEFORE_READ_INPUT;
+    return ei;
+  }
+
+  static EventInfo AfterReadInput(uint64_t id, const std::string& name, async_simple::Executor* ex,
+                                  size_t input_index = 0) {
+    EventInfo ei;
+    ei.time_point_ = std::chrono::system_clock::now();
+    ei.ex_ = ex;
+    ei.node_id_ = id;
+    ei.node_name_ = name;
+    ei.input_channel_index_ = input_index;
+    ei.event_type_ = EventType::AFTER_READ_INPUT;
     return ei;
   }
 };

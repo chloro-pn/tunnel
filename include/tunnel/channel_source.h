@@ -11,7 +11,7 @@ namespace tunnel {
 template <typename T>
 class ChannelSource : public Source<T> {
  public:
-  ChannelSource(const std::string& name = "channel_source") : Source<T>(name) {}
+  ChannelSource(const std::string& name = "channel_source") : Source<T>(name) { this->input_count_ = 1; }
 
   // user have to set input channel before running pipeline, otherwise an exception will be thrown
   void SetInputChannel(const Channel<T>& input) {
@@ -29,8 +29,7 @@ class ChannelSource : public Source<T> {
 
   virtual async_simple::coro::Lazy<std::optional<T>> generate() override {
     Channel<T>& input_channel = this->GetInputPort();
-    size_t input_count = 1;
-    co_return co_await this->Pop(input_channel, input_count);
+    co_return co_await this->Pop(input_channel);
   }
 };
 

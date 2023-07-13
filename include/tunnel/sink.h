@@ -34,7 +34,7 @@ class Sink : public Processor<T> {
   virtual async_simple::coro::Lazy<void> work() override {
     Channel<T>& input = this->GetInputPort();
     while (true) {
-      std::optional<T> value = co_await this->Pop(input, this->input_count_);
+      std::optional<T> value = co_await this->Pop(input);
       if (value.has_value()) {
         co_await consume(std::move(value).value());
       } else {

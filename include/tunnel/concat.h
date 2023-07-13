@@ -40,8 +40,7 @@ class Concat : public MultiIOneO<T> {
     for (size_t i = 0; i < this->Size(); ++i) {
       Channel<T>& input = this->GetChannel(i);
       while (true) {
-        size_t current_input_count = 1;
-        std::optional<T> v = co_await this->Pop(input, current_input_count);
+        std::optional<T> v = co_await this->Pop(input);
         if (v.has_value()) {
           co_await this->Push(std::move(v), output);
         } else {

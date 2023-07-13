@@ -42,7 +42,7 @@ class SimpleTransform : public Transform<T> {
     Channel<T> &input = this->GetInputPort();
     Channel<T> &output = this->GetOutputPort();
     while (true) {
-      std::optional<T> v = co_await this->Pop(input, this->input_count_);
+      std::optional<T> v = co_await this->Pop(input);
       if (v.has_value()) {
         T new_v = co_await transform(std::move(v).value());
         co_await this->Push(std::move(new_v), output);

@@ -115,7 +115,13 @@ class Processor {
   }
 
  protected:
-  async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
+  // API
+  virtual async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input) {
+    size_t &input_count = this->input_count_;
+    co_return co_await Pop(input, input_count);
+  }
+
+  virtual async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
     while (true) {
       std::optional<T> value = co_await input.GetQueue().Pop();
       bool is_eof = !value.has_value();
@@ -149,6 +155,7 @@ class Processor {
     }
   }
 
+  // API
   async_simple::coro::Lazy<void> Push(std::optional<T> &&v, Channel<T> &output) {
     bool is_eof = !v.has_value();
     co_await output.GetQueue().Push(std::move(v));
@@ -207,14 +214,23 @@ class Processor {
 
   void SetOutputPort(const Channel<T> &output) { output_port = output; }
 
+  // API
   uint64_t &GetId() noexcept { return processor_id_; }
 
   size_t GetInputCount() const { return input_count_; }
 
+  /*
+   * API
+   * MultiIOneO should not call this two method to obtain the input port.
+   */
   const Channel<T> &GetInputPort() const { return input_port; }
 
   Channel<T> &GetInputPort() { return input_port; }
 
+  /*
+   * API
+   * OneIMultiO should not call this two method to obtain the output port.
+   */
   const Channel<T> &GetOutputPort() const { return output_port; }
 
   Channel<T> &GetOutputPort() { return output_port; }
@@ -223,6 +239,7 @@ class Processor {
 
   Channel<T> &GetAbortChannel() { return abort_port; };
 
+  // API
   const std::string &GetName() const { return name_; }
 
  private:

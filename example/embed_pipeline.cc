@@ -3,7 +3,7 @@
 #include <string>
 
 #include "async_simple/coro/SyncAwait.h"
-#include "async_simple/executors/SimpleExecutor.h"
+#include "executor/tunnel_executor.h"
 #include "tunnel/channel_sink.h"
 #include "tunnel/channel_source.h"
 #include "tunnel/pipeline.h"
@@ -62,7 +62,7 @@ int main() {
   auto id = pipe.AddSource(std::make_unique<MySource>());
   pipe.AddTransform(id, std::make_unique<MyTransform>());
   pipe.SetSink(std::make_unique<MySink>());
-  async_simple::executors::SimpleExecutor ex(2);
+  tunnel::TunnelExecutor ex(2);
   async_simple::coro::syncAwait(std::move(pipe).Run().via(&ex));
   return 0;
 }

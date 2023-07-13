@@ -22,6 +22,10 @@ class OneIMultiO : public Processor<T> {
 
   void AddOutputPort(const Channel<T>& channel) { outputs_.emplace_back(channel); }
 
+  // API
+  size_t Size() const { return output_size_; }
+
+ private:
   virtual void before_work() {
     if (outputs_.size() != output_size_) {
       // todo : use fmt.
@@ -39,9 +43,8 @@ class OneIMultiO : public Processor<T> {
     co_return;
   }
 
-  size_t Size() const { return output_size_; }
-
  protected:
+  // API
   Channel<T>& GetChannel(size_t index) { return outputs_.at(index); }
 
  private:

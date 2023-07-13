@@ -4,6 +4,7 @@
 
 #include "async_simple/coro/SyncAwait.h"
 #include "async_simple/executors/SimpleExecutor.h"
+#include "executor/tunnel_executor.h"
 #include "tunnel/pipeline.h"
 #include "tunnel/sink.h"
 #include "tunnel/source.h"
@@ -34,7 +35,7 @@ int main() {
   Pipeline<std::string> pipe;
   pipe.AddSource(std::make_unique<MySource>());
   pipe.SetSink(std::make_unique<MySink>());
-  async_simple::executors::SimpleExecutor ex(2);
+  tunnel::TunnelExecutor ex(2);
   async_simple::coro::syncAwait(std::move(pipe).Run().via(&ex));
   return 0;
 }
