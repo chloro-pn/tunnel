@@ -23,6 +23,8 @@ using namespace async_simple::coro;
 using namespace async_simple::executors;
 
 TEST(simpletransformTest, NoOpTest) {
+  EventCollector ec;
+  ec.Start();
   SourceTest source;
   NoOpTransform<int> noop;
   SinkTest sink;
@@ -32,9 +34,10 @@ TEST(simpletransformTest, NoOpTest) {
   connect(noop, sink, default_channel_size);
 
   SimpleExecutor ex(2);
-  source.work().via(&ex).start([](Try<void>) {});
-  noop.work().via(&ex).start([](Try<void>) {});
-  syncAwait(sink.work().via(&ex));
+  source.work().via(&ex).setLazyLocal(&ec).start([](Try<void>) {});
+  noop.work().via(&ex).setLazyLocal(&ec).start([](Try<void>) {});
+  syncAwait(sink.work().via(&ex).setLazyLocal(&ec));
+  ec.Collect(EventInfo::PipelineEnd());
   EXPECT_EQ(result, 5050);
 }
 
@@ -44,6 +47,8 @@ class SimpleTransformTest : public SimpleTransform<int> {
 };
 
 TEST(simpletransformTest, simpleTest) {
+  EventCollector ec;
+  ec.Start();
   SourceTest source;
   SimpleTransformTest transform;
   SinkTest sink;
@@ -53,8 +58,9 @@ TEST(simpletransformTest, simpleTest) {
   connect(transform, sink, default_channel_size);
 
   SimpleExecutor ex(2);
-  source.work().via(&ex).start([](Try<void>) {});
-  transform.work().via(&ex).start([](Try<void>) {});
-  syncAwait(sink.work().via(&ex));
+  source.work().via(&ex).setLazyLocal(&ec).start([](Try<void>) {});
+  transform.work().via(&ex).setLazyLocal(&ec).start([](Try<void>) {});
+  syncAwait(sink.work().via(&ex).setLazyLocal(&ec));
+  ec.Collect(EventInfo::PipelineEnd());
   EXPECT_EQ(result, 5050 * 2);
 }

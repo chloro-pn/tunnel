@@ -122,11 +122,16 @@ class Processor {
   }
 
   virtual async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
+    EventCollector *ec = co_await async_simple::coro::LazyLocals<EventCollector>{};
     while (true) {
+      ec->Collect(
+          EventInfo::BeforeReadInput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, input.GetIndex()));
       std::optional<T> value = co_await input.GetQueue().Pop();
       bool is_eof = !value.has_value();
       bool should_return = false;
       if (is_eof) {
+        ec->Collect(
+            EventInfo::AfterReadEof(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, input.GetIndex()));
         assert(input_count > 0);
         --input_count;
         if (input_count == 0) {
@@ -136,6 +141,8 @@ class Processor {
           should_return = true;
         }
       } else {
+        ec->Collect(
+            EventInfo::AfterReadInput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, input.GetIndex()));
         should_return = true;
       }
       // if it is the last EOF information, the abort_port should not be checked, otherwise it may cause the output
@@ -157,10 +164,19 @@ class Processor {
 
   // API
   async_simple::coro::Lazy<void> Push(std::optional<T> &&v, Channel<T> &output) {
+    EventCollector *ec = co_await async_simple::coro::LazyLocals<EventCollector>{};
+
     bool is_eof = !v.has_value();
+    ec->Collect(
+        EventInfo::BeforeWriteOutput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, output.GetIndex()));
     co_await output.GetQueue().Push(std::move(v));
     if (is_eof) {
+      ec->Collect(
+          EventInfo::AfterWriteEof(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, output.GetIndex()));
       output.reset();
+    } else {
+      ec->Collect(
+          EventInfo::AfterWriteOutput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, output.GetIndex()));
     }
     if (abort_port) {
       async_simple::Try<std::optional<int>> abort_info = co_await abort_port.GetQueue().TryPop();

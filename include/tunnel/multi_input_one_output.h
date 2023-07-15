@@ -46,7 +46,11 @@ class MultiIOneO : public Processor<T> {
 
  protected:
   // API
-  Channel<T>& GetChannel(size_t index) { return inputs_.at(index); }
+  Channel<T>& GetChannel(size_t index) {
+    auto& result = inputs_.at(index);
+    result.SetIndex(index);
+    return result;
+  }
 
   // API
   virtual async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T>& input) override {

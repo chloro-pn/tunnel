@@ -34,9 +34,9 @@ class Channel {
  public:
   using element_type = std::optional<T>;
 
-  Channel() : queue_(nullptr) {}
+  Channel() : queue_(nullptr), index_(0) {}
 
-  Channel(std::shared_ptr<BoundedQueue<element_type>> queue) : queue_(queue) {}
+  Channel(std::shared_ptr<BoundedQueue<element_type>> queue) : queue_(queue), index_(0) {}
 
   Channel(size_t capacity) : queue_(std::make_shared<BoundedQueue<element_type>>(capacity)) {}
 
@@ -47,10 +47,15 @@ class Channel {
 
   operator bool() const { return queue_.operator bool(); }
 
+  void SetIndex(size_t index) noexcept { index_ = index; }
+
+  size_t GetIndex() const noexcept { return index_; }
+
   void reset() { queue_.reset(); }
 
  private:
   std::shared_ptr<BoundedQueue<element_type>> queue_;
+  size_t index_;
 };
 
 }  // namespace tunnel

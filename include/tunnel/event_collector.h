@@ -4,6 +4,7 @@
 #include <chrono>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "async_simple/Executor.h"
 #include "rigtorp/MPMCQueue.h"
@@ -29,6 +30,7 @@ struct EventInfo {
   size_t input_channel_index_ = 0;
   size_t output_channel_index_ = 0;
   EventType event_type_;
+  bool is_eof_ = false;
 
   EventInfo() = default;
 
@@ -95,6 +97,56 @@ struct EventInfo {
     ei.event_type_ = EventType::AFTER_READ_INPUT;
     return ei;
   }
+
+  static EventInfo AfterReadEof(uint64_t id, const std::string& name, async_simple::Executor* ex,
+                                size_t input_index = 0) {
+    EventInfo ei;
+    ei.time_point_ = std::chrono::system_clock::now();
+    ei.ex_ = ex;
+    ei.node_id_ = id;
+    ei.node_name_ = name;
+    ei.input_channel_index_ = input_index;
+    ei.event_type_ = EventType::AFTER_READ_INPUT;
+    ei.is_eof_ = true;
+    return ei;
+  }
+
+  static EventInfo BeforeWriteOutput(uint64_t id, const std::string& name, async_simple::Executor* ex,
+                                     size_t output_index = 0) {
+    EventInfo ei;
+    ei.time_point_ = std::chrono::system_clock::now();
+    ei.ex_ = ex;
+    ei.node_id_ = id;
+    ei.node_name_ = name;
+    ei.output_channel_index_ = output_index;
+    ei.event_type_ = EventType::BEFORE_WRITE_OUTPUT;
+    return ei;
+  }
+
+  static EventInfo AfterWriteOutput(uint64_t id, const std::string& name, async_simple::Executor* ex,
+                                    size_t output_index = 0) {
+    EventInfo ei;
+    ei.time_point_ = std::chrono::system_clock::now();
+    ei.ex_ = ex;
+    ei.node_id_ = id;
+    ei.node_name_ = name;
+    ei.output_channel_index_ = output_index;
+    ei.event_type_ = EventType::AFTER_WRITE_OUTPUT;
+    return ei;
+  }
+
+  static EventInfo AfterWriteEof(uint64_t id, const std::string& name, async_simple::Executor* ex,
+                                 size_t output_index = 0) {
+    EventInfo ei;
+    ei.time_point_ = std::chrono::system_clock::now();
+    ei.ex_ = ex;
+    ei.node_id_ = id;
+    ei.node_name_ = name;
+    ei.output_channel_index_ = output_index;
+    ei.event_type_ = EventType::AFTER_WRITE_OUTPUT;
+    ei.is_eof_ = true;
+    return ei;
+  }
 };
 
 class EventCollector {
@@ -115,7 +167,7 @@ class EventCollector {
 
   void Collect(EventInfo&& event_info) { queue_->push(std::move(event_info)); }
 
-  void Handle(EventInfo&& ei) {}
+  void Handle(EventInfo&& ei) { events_.emplace_back(std::move(ei)); }
 
   void Stop() {
     if (work_.joinable()) {
@@ -124,6 +176,8 @@ class EventCollector {
   }
 
   ~EventCollector() { Stop(); }
+
+  const std::vector<EventInfo>& GetEvents() const { return events_; }
 
  private:
   void backend_handle() {
@@ -145,6 +199,7 @@ class EventCollector {
   bool start_;
   std::unique_ptr<rigtorp::MPMCQueue<EventInfo>> queue_;
   std::thread work_;
+  std::vector<EventInfo> events_;
 };
 
 }  // namespace tunnel

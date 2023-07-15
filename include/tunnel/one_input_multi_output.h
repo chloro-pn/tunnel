@@ -45,7 +45,11 @@ class OneIMultiO : public Processor<T> {
 
  protected:
   // API
-  Channel<T>& GetChannel(size_t index) { return outputs_.at(index); }
+  Channel<T>& GetChannel(size_t index) {
+    auto& result = outputs_.at(index);
+    result.SetIndex(index);
+    return result;
+  }
 
  private:
   std::vector<Channel<T>> outputs_;
