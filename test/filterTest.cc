@@ -35,11 +35,10 @@ TEST(filterTest, basic) {
   connect(source, filter, default_channel_size);
   connect(filter, sink, default_channel_size);
   async_simple::executors::SimpleExecutor ex(2);
-  EventCollector ec;
-  ec.Start();
-  source.work().via(&ex).setLazyLocal(&ec).start([](async_simple::Try<void>) {});
-  filter.work().via(&ex).setLazyLocal(&ec).start([](async_simple::Try<void>) {});
-  async_simple::coro::syncAwait(sink.work().via(&ex).setLazyLocal(&ec));
-  ec.Collect(EventInfo::PipelineEnd());
+  source.work().via(&ex).start([](async_simple::Try<void>) {});
+  filter.work().via(&ex).start([](async_simple::Try<void>) {});
+  async_simple::coro::syncAwait(sink.work().via(&ex));
   EXPECT_EQ(result, 2500);
+  size_t count = filter.GetEventCollector().output_ports_statistic_.find(0)->second.count_;
+  EXPECT_EQ(count, 52);
 }

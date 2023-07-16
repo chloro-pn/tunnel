@@ -69,6 +69,11 @@ class Pipeline;
 template <typename T>
 Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right);
 
+struct ProcessorWorkResult {
+  async_simple::Try<void> work_result;
+  EventCollector event_collector;
+};
+
 template <typename T>
 class Pipeline {
  public:
@@ -202,28 +207,34 @@ class Pipeline {
     return result;
   }
 
-  Lazy<std::vector<async_simple::Try<void>>> Run() && {
+  Lazy<std::vector<ProcessorWorkResult>> Run() && {
     if (leaves_.empty() == false) {
       throw std::runtime_error("try to run incompleted pipeline");
     }
     if (nodes_.empty() == true) {
       throw std::runtime_error("try to run empty pipeline");
     }
-    std::vector<async_simple::coro::RescheduleLazy<void>> lazies;
     async_simple::Executor* ex = co_await async_simple::CurrentExecutor{};
     if (ex == nullptr) {
       throw std::runtime_error("pipeline can not run without executor");
     }
-    event_collector_.Start();
+    std::vector<async_simple::coro::RescheduleLazy<void>> lazies;
+    std::vector<ProcessorWorkResult> results;
     Channel<int> abort_channel(10);
-    for (auto&& node : nodes_) {
+    for (auto& node : nodes_) {
       if (option_.bind_abort_channel) {
         node.second->BindAbortChannel(abort_channel);
       }
-      lazies.emplace_back(std::move(node.second)->work_with_exception().via(ex).setLazyLocal(&event_collector_));
+      lazies.emplace_back(node.second->work_with_exception().via(ex));
     }
-    auto results = co_await async_simple::coro::collectAllPara(std::move(lazies));
-    event_collector_.Collect(EventInfo::PipelineEnd());
+    auto lazy_results = co_await async_simple::coro::collectAllPara(std::move(lazies));
+    auto each_lazy = lazy_results.begin();
+    for (auto& node : nodes_) {
+      ProcessorWorkResult result;
+      result.work_result = std::move((*each_lazy));
+      result.event_collector = node.second->GetEventCollector();
+      each_lazy += 1;
+    }
     co_return results;
   }
 
@@ -281,7 +292,6 @@ class Pipeline {
   // record sources and sinks in the order of registration to support the merge of pipelines.
   std::vector<uint64_t> sources_;
   std::vector<uint64_t> sinks_;
-  EventCollector event_collector_;
 
   void add_edge(uint64_t from, uint64_t to) { dags_[from].insert(to); }
 
@@ -439,7 +449,6 @@ Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right) {
   // merge sources and sinks
   new_pipeline.sources_ = left.sources_;
   new_pipeline.sinks_ = right.sinks_;
-  new_pipeline.event_collector_ = std::move(left.event_collector_);
   return new_pipeline;
 }
 

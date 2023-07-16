@@ -63,7 +63,7 @@ class Processor {
   friend class Pipeline<T>;
 
   explicit Processor(const std::string &name = "")
-      : processor_id_(detail::GenerateId()), name_(name), input_count_(0) {}
+      : processor_id_(detail::GenerateId()), name_(name), input_count_(0), event_collector_(processor_id_, name_) {}
 
  private:
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
@@ -81,9 +81,7 @@ class Processor {
                 << std::endl;
       std::abort();
     }
-    EventCollector *event_collector = co_await async_simple::coro::LazyLocals<EventCollector>{};
-    event_collector->Collect(EventInfo::WorkStart(GetId(), GetName(), co_await async_simple::CurrentExecutor{}));
-
+    event_collector_.WorkStart();
     async_simple::Try<void> result = co_await work().coAwaitTry();
     if (result.hasError()) {
       std::string exception_msg;
@@ -101,8 +99,7 @@ class Processor {
       }
       // We only need to TryPush to notify the exit information
       co_await abort_port.GetQueue().TryPush(0);
-
-      event_collector->Collect(EventInfo::HostedMode(GetId(), GetName(), co_await async_simple::CurrentExecutor{}));
+      event_collector_.EnterHostedMode();
       co_await hosted_mode();
       std::rethrow_exception(result.getException());
     }
@@ -110,7 +107,7 @@ class Processor {
     else {
       co_await after_work();
     }
-    event_collector->Collect(EventInfo::WorkEnd(GetId(), GetName(), co_await async_simple::CurrentExecutor{}));
+    event_collector_.WorkEnd();
     co_return;
   }
 
@@ -122,16 +119,12 @@ class Processor {
   }
 
   virtual async_simple::coro::Lazy<std::optional<T>> Pop(Channel<T> &input, size_t &input_count) {
-    EventCollector *ec = co_await async_simple::coro::LazyLocals<EventCollector>{};
     while (true) {
-      ec->Collect(
-          EventInfo::BeforeReadInput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, input.GetIndex()));
       std::optional<T> value = co_await input.GetQueue().Pop();
       bool is_eof = !value.has_value();
+      event_collector_.InputPortRead(input.GetIndex(), is_eof);
       bool should_return = false;
       if (is_eof) {
-        ec->Collect(
-            EventInfo::AfterReadEof(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, input.GetIndex()));
         assert(input_count > 0);
         --input_count;
         if (input_count == 0) {
@@ -141,8 +134,6 @@ class Processor {
           should_return = true;
         }
       } else {
-        ec->Collect(
-            EventInfo::AfterReadInput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, input.GetIndex()));
         should_return = true;
       }
       // if it is the last EOF information, the abort_port should not be checked, otherwise it may cause the output
@@ -164,19 +155,11 @@ class Processor {
 
   // API
   async_simple::coro::Lazy<void> Push(std::optional<T> &&v, Channel<T> &output) {
-    EventCollector *ec = co_await async_simple::coro::LazyLocals<EventCollector>{};
-
     bool is_eof = !v.has_value();
-    ec->Collect(
-        EventInfo::BeforeWriteOutput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, output.GetIndex()));
     co_await output.GetQueue().Push(std::move(v));
+    event_collector_.OutputPortWrite(output.GetIndex(), is_eof);
     if (is_eof) {
-      ec->Collect(
-          EventInfo::AfterWriteEof(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, output.GetIndex()));
       output.reset();
-    } else {
-      ec->Collect(
-          EventInfo::AfterWriteOutput(GetId(), GetName(), co_await async_simple::CurrentExecutor{}, output.GetIndex()));
     }
     if (abort_port) {
       async_simple::Try<std::optional<int>> abort_info = co_await abort_port.GetQueue().TryPop();
@@ -258,6 +241,8 @@ class Processor {
   // API
   const std::string &GetName() const { return name_; }
 
+  const EventCollector &GetEventCollector() const { return event_collector_; }
+
  private:
   uint64_t processor_id_;
   std::string name_;
@@ -266,6 +251,7 @@ class Processor {
   // exception and notify other Processors. If we read some data from abort_channel, we should co_return as soon as
   // possible.
   Channel<int> abort_port;
+  EventCollector event_collector_;
 
  protected:
   Channel<T> input_port;

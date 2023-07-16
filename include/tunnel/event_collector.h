@@ -2,204 +2,64 @@
 #define TUNNEL_EVENT_COLLECTOR_H
 
 #include <chrono>
+#include <map>
+#include <optional>
 #include <string>
-#include <thread>
-#include <vector>
-
-#include "async_simple/Executor.h"
-#include "rigtorp/MPMCQueue.h"
 
 namespace tunnel {
 
-enum class EventType : uint8_t {
-  BEFORE_READ_INPUT,
-  AFTER_READ_INPUT,
-  BEFORE_WRITE_OUTPUT,
-  AFTER_WRITE_OUTPUT,
-  WORK_START,
-  WORK_END,
-  HOSTED_MODE,
-  PIPELINE_END,
-};
+struct EventCollector {
+  EventCollector(uint64_t id = 0, const std::string& name = "") : processor_id_(id), processor_name_(name) {}
 
-struct EventInfo {
-  std::chrono::system_clock::time_point time_point_;
-  async_simple::Executor* ex_;
-  uint64_t node_id_;
-  std::string node_name_;
-  size_t input_channel_index_ = 0;
-  size_t output_channel_index_ = 0;
-  EventType event_type_;
-  bool is_eof_ = false;
+  void WorkStart() { work_start_ = std::chrono::system_clock::now(); }
 
-  EventInfo() = default;
+  void WorkEnd() { work_end_ = std::chrono::system_clock::now(); }
 
-  EventInfo(EventInfo&&) = default;
-  EventInfo& operator=(EventInfo&&) = default;
+  void EnterHostedMode() { enter_hosted_mode_ = std::chrono::system_clock::now(); }
 
-  static EventInfo PipelineEnd() {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.event_type_ = EventType::PIPELINE_END;
-    return ei;
-  }
-
-  static EventInfo WorkStart(uint64_t id, const std::string& name, async_simple::Executor* ex) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.event_type_ = EventType::WORK_START;
-    return ei;
-  }
-
-  static EventInfo WorkEnd(uint64_t id, const std::string& name, async_simple::Executor* ex) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.event_type_ = EventType::WORK_END;
-    return ei;
-  }
-
-  static EventInfo HostedMode(uint64_t id, const std::string& name, async_simple::Executor* ex) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.event_type_ = EventType::HOSTED_MODE;
-    return ei;
-  }
-
-  static EventInfo BeforeReadInput(uint64_t id, const std::string& name, async_simple::Executor* ex,
-                                   size_t input_index = 0) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.input_channel_index_ = input_index;
-    ei.event_type_ = EventType::BEFORE_READ_INPUT;
-    return ei;
-  }
-
-  static EventInfo AfterReadInput(uint64_t id, const std::string& name, async_simple::Executor* ex,
-                                  size_t input_index = 0) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.input_channel_index_ = input_index;
-    ei.event_type_ = EventType::AFTER_READ_INPUT;
-    return ei;
-  }
-
-  static EventInfo AfterReadEof(uint64_t id, const std::string& name, async_simple::Executor* ex,
-                                size_t input_index = 0) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.input_channel_index_ = input_index;
-    ei.event_type_ = EventType::AFTER_READ_INPUT;
-    ei.is_eof_ = true;
-    return ei;
-  }
-
-  static EventInfo BeforeWriteOutput(uint64_t id, const std::string& name, async_simple::Executor* ex,
-                                     size_t output_index = 0) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.output_channel_index_ = output_index;
-    ei.event_type_ = EventType::BEFORE_WRITE_OUTPUT;
-    return ei;
-  }
-
-  static EventInfo AfterWriteOutput(uint64_t id, const std::string& name, async_simple::Executor* ex,
-                                    size_t output_index = 0) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.output_channel_index_ = output_index;
-    ei.event_type_ = EventType::AFTER_WRITE_OUTPUT;
-    return ei;
-  }
-
-  static EventInfo AfterWriteEof(uint64_t id, const std::string& name, async_simple::Executor* ex,
-                                 size_t output_index = 0) {
-    EventInfo ei;
-    ei.time_point_ = std::chrono::system_clock::now();
-    ei.ex_ = ex;
-    ei.node_id_ = id;
-    ei.node_name_ = name;
-    ei.output_channel_index_ = output_index;
-    ei.event_type_ = EventType::AFTER_WRITE_OUTPUT;
-    ei.is_eof_ = true;
-    return ei;
-  }
-};
-
-class EventCollector {
- public:
-  EventCollector() : start_(false) {}
-
-  EventCollector(EventCollector&&) = default;
-  EventCollector& operator=(EventCollector&&) = default;
-
-  void Start() {
-    if (start_ == true) {
-      return;
+  void InputPortRead(size_t index, bool eof = false) {
+    if (input_ports_statistic_.count(index) == 0) {
+      port_statistic new_port;
+      new_port.first_time_ = std::chrono::system_clock::now();
+      input_ports_statistic_.insert({index, new_port});
     }
-    queue_.reset(new rigtorp::MPMCQueue<EventInfo>(102400));
-    work_ = std::thread([&]() { this->backend_handle(); });
-    start_ = true;
-  }
-
-  void Collect(EventInfo&& event_info) { queue_->push(std::move(event_info)); }
-
-  void Handle(EventInfo&& ei) { events_.emplace_back(std::move(ei)); }
-
-  void Stop() {
-    if (work_.joinable()) {
-      work_.join();
+    auto it = input_ports_statistic_.find(index);
+    it->second.count_ += 1;
+    if (eof == true) {
+      it->second.last_time_ = std::chrono::system_clock::now();
     }
   }
 
-  ~EventCollector() { Stop(); }
-
-  const std::vector<EventInfo>& GetEvents() const { return events_; }
-
- private:
-  void backend_handle() {
-    while (true) {
-      EventInfo ei;
-      bool succ = queue_->try_pop(ei);
-      if (succ == true) {
-        bool eof = ei.event_type_ == EventType::PIPELINE_END;
-        Handle(std::move(ei));
-        if (eof == true) {
-          break;
-        }
-      } else {
-        std::this_thread::sleep_for(std::chrono::milliseconds(20));
-      }
+  void OutputPortWrite(size_t index, bool eof = false) {
+    if (output_ports_statistic_.count(index) == 0) {
+      port_statistic new_port;
+      new_port.first_time_ = std::chrono::system_clock::now();
+      output_ports_statistic_.insert({index, new_port});
+    }
+    auto it = output_ports_statistic_.find(index);
+    it->second.count_ += 1;
+    if (eof == true) {
+      it->second.last_time_ = std::chrono::system_clock::now();
     }
   }
 
-  bool start_;
-  std::unique_ptr<rigtorp::MPMCQueue<EventInfo>> queue_;
-  std::thread work_;
-  std::vector<EventInfo> events_;
+  uint64_t processor_id_;
+  std::string processor_name_;
+  std::chrono::system_clock::time_point work_start_;
+  std::chrono::system_clock::time_point work_end_;
+  std::optional<std::chrono::system_clock::time_point> enter_hosted_mode_;
+
+  struct port_statistic {
+    // read / write total number
+    size_t count_ = 0;
+    // the time_point of first read / write
+    std::chrono::system_clock::time_point first_time_;
+    // the time_point of last read / write
+    std::chrono::system_clock::time_point last_time_;
+  };
+
+  std::map<size_t, port_statistic> input_ports_statistic_;
+  std::map<size_t, port_statistic> output_ports_statistic_;
 };
 
 }  // namespace tunnel

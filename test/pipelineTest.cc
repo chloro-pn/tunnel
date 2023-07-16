@@ -154,7 +154,7 @@ TEST(TestPipeline, channelfork) {
   auto node_results = async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   EXPECT_EQ(5050 * 3, result);
   for (auto& each : node_results) {
-    EXPECT_EQ(each.hasError(), false);
+    EXPECT_EQ(each.work_result.hasError(), false);
   }
 }
 
@@ -188,14 +188,22 @@ TEST(TestPipeline, throwException) {
   pipeline.SetSink(std::make_unique<ThrowSinkTest>());
   auto results = async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));
   for (auto& each : results) {
-    if (each.hasError()) {
+    if (each.work_result.hasError()) {
       std::string result;
       try {
-        std::rethrow_exception(each.getException());
+        std::rethrow_exception(each.work_result.getException());
       } catch (const std::exception& e) {
         result = e.what();
       }
       EXPECT_TRUE(result == "throw sink test" || result == "throw by abort channel");
+    }
+    if (each.event_collector.processor_name_ == "fork") {
+      EXPECT_EQ(each.event_collector.input_ports_statistic_.size(), 1);
+      EXPECT_EQ(each.event_collector.input_ports_statistic_[0].count_, 100);
+      EXPECT_EQ(each.event_collector.output_ports_statistic_.size(), 3);
+      EXPECT_EQ(each.event_collector.output_ports_statistic_[0].count_, 100);
+      EXPECT_EQ(each.event_collector.output_ports_statistic_[1].count_, 100);
+      EXPECT_EQ(each.event_collector.output_ports_statistic_[2].count_, 100);
     }
   }
 }

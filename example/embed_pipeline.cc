@@ -50,8 +50,8 @@ class MyTransform : public Transform<std::string> {
     auto result = co_await std::move(sub_pipeline).Run();
     // handle result
     for (auto& each : result) {
-      if (each.hasError()) {
-        std::rethrow_exception(each.getException());
+      if (each.work_result.hasError()) {
+        std::rethrow_exception(each.work_result.getException());
       }
     }
   }
