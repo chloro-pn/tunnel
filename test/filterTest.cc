@@ -18,6 +18,7 @@
 #include "test_define.h"
 #include "tunnel/filter.h"
 #include "tunnel/pipeline.h"
+#include "tunnel/tunnel_traits.h"
 
 using namespace tunnel;
 
@@ -30,6 +31,7 @@ TEST(filterTest, basic) {
   SourceTest source;
   FilterTest filter;
   SinkTest sink;
+  EXPECT_EQ(RecordTransferredBytes<int>, true);
   int result = 0;
   sink.callback = [&](int v) { result += v; };
   connect(source, filter, default_channel_size);
@@ -40,5 +42,7 @@ TEST(filterTest, basic) {
   async_simple::coro::syncAwait(sink.work().via(&ex));
   EXPECT_EQ(result, 2500);
   size_t count = filter.GetEventCollector().output_ports_statistic_.find(0)->second.count_;
-  EXPECT_EQ(count, 52);
+  size_t bytes = filter.GetEventCollector().output_ports_statistic_.find(0)->second.bytes_;
+  EXPECT_EQ(count, 51);
+  EXPECT_EQ(bytes, 50 * sizeof(int));
 }

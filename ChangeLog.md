@@ -7,3 +7,7 @@
 
 ##### [2023-7-16]
 * 重构 Processor的事件收集机制，收集的事件的统计结果作为Pipeline.Run函数的返回值返回给用户
+
+##### [2023-7-17]
+* new concept RecordTransferredBytes, 对于数据类型T，用户可以通过在tunnel命名空间添加`GetBytes`的T的特化版本，或者添加一个`size_t tunnel_get_bytes() const`成员函数来使统计信息中包含每个节点读取与写出的字节数。
+* 关于中止信息如何跨pipeline传递的方案 [todo]

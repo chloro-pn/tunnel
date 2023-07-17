@@ -17,7 +17,7 @@ struct EventCollector {
 
   void EnterHostedMode() { enter_hosted_mode_ = std::chrono::system_clock::now(); }
 
-  void InputPortRead(size_t index, bool eof = false) {
+  void InputPortRead(size_t index, size_t bytes, bool eof = false) {
     if (input_ports_statistic_.count(index) == 0) {
       port_statistic new_port;
       new_port.first_time_ = std::chrono::system_clock::now();
@@ -25,12 +25,13 @@ struct EventCollector {
     }
     auto it = input_ports_statistic_.find(index);
     it->second.count_ += 1;
+    it->second.bytes_ += bytes;
     if (eof == true) {
       it->second.last_time_ = std::chrono::system_clock::now();
     }
   }
 
-  void OutputPortWrite(size_t index, bool eof = false) {
+  void OutputPortWrite(size_t index, size_t bytes, bool eof = false) {
     if (output_ports_statistic_.count(index) == 0) {
       port_statistic new_port;
       new_port.first_time_ = std::chrono::system_clock::now();
@@ -38,6 +39,7 @@ struct EventCollector {
     }
     auto it = output_ports_statistic_.find(index);
     it->second.count_ += 1;
+    it->second.bytes_ += bytes;
     if (eof == true) {
       it->second.last_time_ = std::chrono::system_clock::now();
     }
@@ -52,6 +54,8 @@ struct EventCollector {
   struct port_statistic {
     // read / write total number
     size_t count_ = 0;
+    // read / write total bytes
+    size_t bytes_ = 0;
     // the time_point of first read / write
     std::chrono::system_clock::time_point first_time_;
     // the time_point of last read / write

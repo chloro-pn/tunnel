@@ -33,6 +33,14 @@
 
 using namespace tunnel;
 
+namespace tunnel {
+
+template <>
+inline size_t GetBytes(const int& v) {
+  return sizeof(v);
+}
+}  // namespace tunnel
+
 class SinkTest : public Sink<int> {
  public:
   explicit SinkTest(const std::string& name = "") : Sink<int>(name) {}

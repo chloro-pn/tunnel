@@ -32,6 +32,7 @@
 #include "async_simple/coro/Sleep.h"
 #include "tunnel/channel.h"
 #include "tunnel/event_collector.h"
+#include "tunnel/tunnel_traits.h"
 
 namespace tunnel {
 
@@ -122,14 +123,19 @@ class Processor {
     while (true) {
       std::optional<T> value = co_await input.GetQueue().Pop();
       bool is_eof = !value.has_value();
-      event_collector_.InputPortRead(input.GetIndex(), is_eof);
+      size_t transferred_bytes = 0;
+      if constexpr (RecordTransferredBytes<T>) {
+        transferred_bytes = is_eof ? 0 : GetTransferredBytes(value.value());
+      }
+      event_collector_.InputPortRead(input.GetIndex(), transferred_bytes, is_eof);
       bool should_return = false;
       if (is_eof) {
         assert(input_count > 0);
         --input_count;
         if (input_count == 0) {
           // write EOF information back into input so that other nodes reading this queue can also read EOF information
-          co_await Push(std::optional<T>{}, input);
+          // useless now
+          // co_await Push(std::optional<T>{}, input);
           input.reset();
           should_return = true;
         }
@@ -156,8 +162,12 @@ class Processor {
   // API
   async_simple::coro::Lazy<void> Push(std::optional<T> &&v, Channel<T> &output) {
     bool is_eof = !v.has_value();
+    size_t transferred_bytes = 0;
+    if constexpr (RecordTransferredBytes<T>) {
+      transferred_bytes = is_eof ? 0 : GetTransferredBytes(v.value());
+    }
     co_await output.GetQueue().Push(std::move(v));
-    event_collector_.OutputPortWrite(output.GetIndex(), is_eof);
+    event_collector_.OutputPortWrite(output.GetIndex(), transferred_bytes, is_eof);
     if (is_eof) {
       output.reset();
     }
