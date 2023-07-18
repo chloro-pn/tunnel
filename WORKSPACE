@@ -23,7 +23,7 @@ git_repository(
 git_repository(
     name = "async_simple",
     remote = "https://github.com/alibaba/async_simple",
-    commit = "dd9a07749ade7735e675148a1e5c5559359a61cc",
+    commit = "584e1f1c8d69f1ebd826c674beea0dababdd9ae0",
 )
 
 new_git_repository(

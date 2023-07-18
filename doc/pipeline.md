@@ -61,6 +61,11 @@
 * `std::string Dump() const`
 dump当前pipeline的结构信息。
 
+* `void BindExecutorForProcessor(uint64_t id, async_simple::Executor* ex)`
+为指定的Processor绑定executor，不绑定executor的Processor会运行在`pipeline.Run`运行的同一个executor上。
+一个pipeline的不同Processor可以运行在不同的executor上。
+id代表的Processor必须已经在pipeline中。
+
 #### about exception
 根据是否为Processor节点绑定abort_channel，Pipeline提供两种异常处理模式:
   1. 当绑定abort_channel时，如果节点抛出异常（主动抛出异常），则首先根据async_simple的异常传递机制，该异常会被实际调度的底层协程捕获，然后该节点会通过`abort_channel`将退出消息通知给其他节点，每个节点在读写数据之后都会尝试从`abort_channel`读取退出消息，如果读成功则抛出异常（被动抛出异常）。
