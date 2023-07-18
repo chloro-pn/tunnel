@@ -225,7 +225,11 @@ class Pipeline {
       if (option_.bind_abort_channel) {
         node.second->BindAbortChannel(abort_channel);
       }
-      lazies.emplace_back(node.second->work_with_exception().via(ex));
+      auto bind_ex = node.second->GetBindExecutor();
+      if (bind_ex == nullptr) {
+        bind_ex = ex;
+      }
+      lazies.emplace_back(node.second->work_with_exception().via(bind_ex));
     }
     auto lazy_results = co_await async_simple::coro::collectAllPara(std::move(lazies));
     auto each_lazy = lazy_results.begin();
@@ -282,6 +286,15 @@ class Pipeline {
     }
     result << "the pipeline is " << (IsCompleted() ? "completed" : "incompleted") << "\n";
     return result.str();
+  }
+
+  void BindExecutorForProcessor(uint64_t id, async_simple::Executor* ex) {
+    assert(ex != nullptr);
+    auto it = nodes_.find(id);
+    if (it == nodes_.end()) {
+      throw std::runtime_error("bind executor error, invalid processor id");
+    }
+    it->second->SetBindExecutor(ex);
   }
 
  private:

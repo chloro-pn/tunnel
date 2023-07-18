@@ -207,3 +207,30 @@ TEST(TestPipeline, throwException) {
     }
   }
 }
+
+class BindExecutorTransform : public SimpleTransform<int> {
+ public:
+  BindExecutorTransform(async_simple::Executor*& ex) : ex_(ex) {}
+
+  virtual async_simple::coro::Lazy<int> transform(int&& value) override {
+    ex_ = co_await async_simple::CurrentExecutor{};
+    co_return value;
+  }
+
+  async_simple::Executor*& ex_;
+};
+
+TEST(TestPipeline, bindExecutor) {
+  async_simple::executors::SimpleExecutor ex1(2);
+  async_simple::executors::SimpleExecutor ex2(2);
+
+  Pipeline<int> pipeline;
+  auto s1 = pipeline.AddSource(std::make_unique<SourceTest>());
+  async_simple::Executor* trans_ex = nullptr;
+  auto trans = std::make_unique<BindExecutorTransform>(trans_ex);
+  auto t1 = pipeline.AddTransform(s1, std::move(trans));
+  pipeline.SetSink(std::make_unique<SinkTest>());
+  pipeline.BindExecutorForProcessor(t1, &ex2);
+  async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex1));
+  EXPECT_EQ(trans_ex, &ex2);
+}

@@ -64,7 +64,11 @@ class Processor {
   friend class Pipeline<T>;
 
   explicit Processor(const std::string &name = "")
-      : processor_id_(detail::GenerateId()), name_(name), input_count_(0), event_collector_(processor_id_, name_) {}
+      : processor_id_(detail::GenerateId()),
+        name_(name),
+        input_count_(0),
+        event_collector_(processor_id_, name_),
+        ex_(nullptr) {}
 
  private:
   virtual async_simple::coro::Lazy<void> work() { throw std::runtime_error("work function is not implemented"); }
@@ -253,6 +257,10 @@ class Processor {
 
   const EventCollector &GetEventCollector() const { return event_collector_; }
 
+  void SetBindExecutor(async_simple::Executor *ex) { ex_ = ex; }
+
+  async_simple::Executor *GetBindExecutor() { return ex_; };
+
  private:
   uint64_t processor_id_;
   std::string name_;
@@ -262,6 +270,8 @@ class Processor {
   // possible.
   Channel<int> abort_port;
   EventCollector event_collector_;
+  //
+  async_simple::Executor *ex_;
 
  protected:
   Channel<T> input_port;
