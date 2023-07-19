@@ -66,6 +66,7 @@ struct PipelineOption {
 template <typename T>
 class Pipeline;
 
+// note! MergePipeline不继承abort_channel.
 template <typename T>
 Pipeline<T> MergePipeline(Pipeline<T>&& left, Pipeline<T>&& right);
 
@@ -220,7 +221,10 @@ class Pipeline {
     }
     std::vector<async_simple::coro::RescheduleLazy<void>> lazies;
     std::vector<ProcessorWorkResult> results;
-    Channel<int> abort_channel(10);
+    Channel<int> abort_channel = GetAbortChannel();
+    if (!abort_channel) {
+      abort_channel = Channel<int>(10);
+    }
     for (auto& node : nodes_) {
       if (option_.bind_abort_channel) {
         node.second->BindAbortChannel(abort_channel);
@@ -268,6 +272,10 @@ class Pipeline {
 
   const std::string& GetName() const { return option_.name; }
 
+  void SetAbortChannel(const Channel<int>& channel) { abort_channel_ = channel; }
+
+  Channel<int>& GetAbortChannel() { return abort_channel_; }
+
   std::string Dump() const {
     std::stringstream result;
     result << "pipeline : " << option_.name << "\n";
@@ -305,6 +313,8 @@ class Pipeline {
   // record sources and sinks in the order of registration to support the merge of pipelines.
   std::vector<uint64_t> sources_;
   std::vector<uint64_t> sinks_;
+
+  Channel<int> abort_channel_;
 
   void add_edge(uint64_t from, uint64_t to) { dags_[from].insert(to); }
 

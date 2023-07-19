@@ -14,3 +14,6 @@
 
 ##### [2023-7-18]
 * add new interface Pipeline.BindExecutorForProcessor
+
+##### [2023-7-19]
+* 支持多个pipeline绑定同一个abort_channel
