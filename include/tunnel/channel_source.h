@@ -27,6 +27,14 @@ class ChannelSource : public Source<T> {
     }
   }
 
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    Channel<T>& input = this->GetInputPort();
+    Channel<T>& output = this->GetOutputPort();
+    co_await this->close_input(input, this->input_count_);
+    co_await this->close_output(output);
+    co_return;
+  }
+
   virtual async_simple::coro::Lazy<std::optional<T>> generate() override {
     Channel<T>& input_channel = this->GetInputPort();
     co_return co_await this->Pop(input_channel);

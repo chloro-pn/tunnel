@@ -27,6 +27,14 @@ class ChannelSink : public Sink<T> {
     }
   }
 
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    Channel<T>& input = this->GetInputPort();
+    Channel<T>& output = this->GetOutputPort();
+    co_await this->close_input(input, this->input_count_);
+    co_await this->close_output(output);
+    co_return;
+  }
+
   // We have to write EOF to output channel
   virtual async_simple::coro::Lazy<void> after_work() override {
     Channel<T>& output_channel = this->GetOutputPort();
@@ -35,7 +43,7 @@ class ChannelSink : public Sink<T> {
 
   virtual async_simple::coro::Lazy<void> consume(T&& value) override {
     Channel<T>& output_channel = this->GetOutputPort();
-    co_await output_channel.GetQueue().Push(std::move(value));
+    co_await this->Push(std::move(value), output_channel);
   }
 };
 

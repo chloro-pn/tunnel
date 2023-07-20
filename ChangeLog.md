@@ -17,3 +17,6 @@
 
 ##### [2023-7-19]
 * 支持多个pipeline绑定同一个abort_channel
+
+##### [2023-7-20]
+* 重构channel_sink和channel_source的托管模式，应该向用户设置的channel传递退出信息。
