@@ -21,7 +21,9 @@
 #include "async_simple/coro/Lazy.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "awaiter/asio/socket.h"
+#include "executor/tunnel_executor.h"
 #include "gtest/gtest.h"
+#include "test_define.h"
 
 using namespace tunnel;
 using namespace async_simple::coro;
@@ -86,13 +88,13 @@ TEST(awaiterTest, basic) {
   std::string read_msg;
   auto task = [&]() -> Lazy<> {
     asio::ip::tcp::socket socket(io.ctx_);
-    co_await ip::tcp::SocketConnectAwaiter(io.ctx_, socket,
+    co_await ip::tcp::SocketConnectAwaiter(socket,
                                            asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12345));
 
     std::string buffer(1024, 'a');
     std::string buffer2(1024, 'b');
-    co_await ip::tcp::SocketWriteAwaiter(io.ctx_, socket, asio::buffer(buffer));
-    size_t transferred = co_await ip::tcp::SocketReadAwaiter(io.ctx_, socket, asio::buffer(buffer2));
+    co_await ip::tcp::SocketWriteAwaiter(socket, asio::buffer(buffer));
+    size_t transferred = co_await ip::tcp::SocketReadAwaiter(socket, asio::buffer(buffer2));
     read_n = transferred;
     read_msg = buffer2;
     co_return;
@@ -103,9 +105,38 @@ TEST(awaiterTest, basic) {
 
   auto task2 = [&]() -> Lazy<> {
     asio::ip::tcp::socket socket(io.ctx_);
-    co_await ip::tcp::SocketConnectAwaiter(io.ctx_, socket,
+    co_await ip::tcp::SocketConnectAwaiter(socket,
                                            asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12346));
   };
   // connection refused exception
   EXPECT_THROW(syncAwait(task2()), std::runtime_error);
+  std::string read_msg2;
+  auto accept_task = [&]() -> Lazy<> {
+    asio::ip::tcp::acceptor accept(io.ctx_,
+                                   asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12346));
+    asio::ip::tcp::socket conn = co_await ip::tcp::SocketAcceptAwaiter(accept);
+    std::string buffer(1024, 'c');
+    co_await ip::tcp::SocketWriteAwaiter(conn, asio::buffer(buffer));
+    std::string buffer2(1024, '\0');
+    co_await ip::tcp::SocketReadAwaiter(conn, asio::buffer(buffer2));
+    read_msg2 = buffer2;
+    co_return;
+  };
+
+  auto client_task = [&]() -> Lazy<> {
+    asio::ip::tcp::socket socket(io.ctx_);
+    co_await ip::tcp::SocketConnectAwaiter(socket,
+                                           asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12346));
+    std::string buffer(1024, 'a');
+    co_await ip::tcp::SocketReadAwaiter(socket, asio::buffer(buffer));
+    co_await ip::tcp::SocketWriteAwaiter(socket, asio::buffer(buffer));
+    co_return;
+  };
+  tunnel::TunnelExecutor ex(2);
+  EventCount ec(2);
+  accept_task().via(&ex).start([&](auto&&) { ec.Notify(); });
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  client_task().via(&ex).start([&](auto&&) { ec.Notify(); });
+  ec.Wait();
+  EXPECT_EQ(read_msg2, std::string(1024, 'c'));
 }

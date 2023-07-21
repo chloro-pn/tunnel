@@ -16,6 +16,7 @@
 
 #include <functional>
 
+#include "executor/tunnel_executor.h"
 #include "gtest/gtest.h"
 #include "test_define.h"
 #include "tunnel/dispatch.h"
@@ -247,7 +248,7 @@ class NeverStopSource : public tunnel::Source<int> {
 };
 
 TEST(TestPipeline, share_abort_channel) {
-  async_simple::executors::SimpleExecutor ex(2);
+  tunnel::TunnelExecutor ex(2);
   tunnel::Channel<int> abort_channel(10);
   Pipeline<int> p1{PipelineOption{.bind_abort_channel = true}};
   auto s1 = p1.AddSource(std::make_unique<SourceTest>());
@@ -255,10 +256,17 @@ TEST(TestPipeline, share_abort_channel) {
   p1.SetSink(std::make_unique<ThrowSinkTest>());
   Pipeline<int> p2{PipelineOption{.bind_abort_channel = true}};
   p2.AddSource(std::make_unique<NeverStopSource>());
-  p2.SetSink(std::make_unique<SinkTest>());
+  auto sink = std::make_unique<SinkTest>();
+  int result = 0;
+  sink->callback = [&](int v) { result += v; };
+  p2.SetSink(std::move(sink));
   p1.SetAbortChannel(abort_channel);
   p2.SetAbortChannel(abort_channel);
-  std::move(p1).Run().via(&ex).start([](auto&&) {});
+  EventCount ec(1);
+  std::move(p1).Run().via(&ex).start([&](auto&& r) { ec.Notify(); });
   // 由于中止信息缓存在channel中，因此p1可以还没开始运行、可以正在抛出异常、甚至可以已经终止了运行，中止信息依然会传递给p2
   async_simple::coro::syncAwait(std::move(p2).Run().via(&ex));
+  ec.Wait();
+  // executor必须要执行完当前的func，否则有core的风险
+  ex.Stop();
 }

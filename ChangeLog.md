@@ -20,3 +20,8 @@
 
 ##### [2023-7-20]
 * 重构channel_sink和channel_source的托管模式，应该向用户设置的channel传递退出信息。
+
+##### [2023-7-21]
+* add new awaiter SocketAcceptAwaiter
+* replace SimpleExecutor in some test with TunnelExecutor (fix occasionally core)
+

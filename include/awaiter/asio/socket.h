@@ -43,8 +43,7 @@ class SocketAwaiterBase {
 
 class SocketConnectAwaiter : public SocketAwaiterBase {
  public:
-  SocketConnectAwaiter(asio::io_context& ctx, asio::ip::tcp::socket& socket, const asio::ip::tcp::endpoint& ep)
-      : ctx_(ctx), socket_(socket), ep_(ep) {}
+  SocketConnectAwaiter(asio::ip::tcp::socket& socket, const asio::ip::tcp::endpoint& ep) : socket_(socket), ep_(ep) {}
 
   void await_suspend(std::coroutine_handle<> h) {
     socket_.async_connect(ep_, [this, h](const asio::error_code& ec) mutable {
@@ -60,7 +59,6 @@ class SocketConnectAwaiter : public SocketAwaiterBase {
   void await_resume() { await_resume_or_throw(); }
 
  private:
-  asio::io_context& ctx_;
   asio::ip::tcp::socket& socket_;
   const asio::ip::tcp::endpoint ep_;
 };
@@ -68,14 +66,14 @@ class SocketConnectAwaiter : public SocketAwaiterBase {
 template <typename MutableBufferSequence>
 class SocketReadAwaiter : public SocketAwaiterBase {
  public:
-  SocketReadAwaiter(asio::io_context& ctx, asio::ip::tcp::socket& socket, const MutableBufferSequence& buf)
-      : ctx_(ctx), socket_(socket), buf_(buf), transferred_(0) {}
+  SocketReadAwaiter(asio::ip::tcp::socket& socket, const MutableBufferSequence& buf)
+      : socket_(socket), buf_(buf), transferred_(0) {}
 
   bool await_ready() const noexcept { return false; }
 
   void await_suspend(std::coroutine_handle<> h) {
     asio::async_read(socket_, buf_, [this, h](asio::error_code ec, size_t transferred) mutable {
-      if (ec) {
+      if (ec && ec != asio::error::eof) {
         handle_error(ec);
       } else {
         transferred_ = transferred;
@@ -87,7 +85,6 @@ class SocketReadAwaiter : public SocketAwaiterBase {
   size_t await_resume() { return await_resume_or_throw(transferred_); }
 
  private:
-  asio::io_context& ctx_;
   asio::ip::tcp::socket& socket_;
   const MutableBufferSequence& buf_;
   size_t transferred_;
@@ -96,8 +93,8 @@ class SocketReadAwaiter : public SocketAwaiterBase {
 template <typename ConstBufferSequence>
 class SocketWriteAwaiter : public SocketAwaiterBase {
  public:
-  SocketWriteAwaiter(asio::io_context& ctx, asio::ip::tcp::socket& socket, const ConstBufferSequence& buf)
-      : ctx_(ctx), socket_(socket), buf_(buf), transferred_(0) {}
+  SocketWriteAwaiter(asio::ip::tcp::socket& socket, const ConstBufferSequence& buf)
+      : socket_(socket), buf_(buf), transferred_(0) {}
 
   bool await_ready() const noexcept { return false; }
 
@@ -115,10 +112,33 @@ class SocketWriteAwaiter : public SocketAwaiterBase {
   size_t await_resume() { return await_resume_or_throw(transferred_); }
 
  private:
-  asio::io_context& ctx_;
   asio::ip::tcp::socket& socket_;
   const ConstBufferSequence& buf_;
   size_t transferred_;
+};
+
+class SocketAcceptAwaiter : public SocketAwaiterBase {
+ public:
+  SocketAcceptAwaiter(asio::ip::tcp::acceptor& acceptor) : acceptor_(acceptor), socket_(acceptor_.get_executor()) {}
+
+  bool await_ready() const noexcept { return false; }
+
+  void await_suspend(std::coroutine_handle<> h) {
+    acceptor_.async_accept([this, h](asio::error_code ec, asio::ip::tcp::socket socket) mutable {
+      if (ec) {
+        handle_error(ec);
+      } else {
+        socket_ = std::move(socket);
+      }
+      h.resume();
+    });
+  }
+
+  asio::ip::tcp::socket await_resume() { return await_resume_or_throw(std::move(socket_)); }
+
+ private:
+  asio::ip::tcp::acceptor& acceptor_;
+  asio::ip::tcp::socket socket_;
 };
 
 }  // namespace ip::tcp

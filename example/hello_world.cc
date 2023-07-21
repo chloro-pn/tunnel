@@ -1,9 +1,7 @@
-#include <functional>
 #include <iostream>
 #include <string>
 
 #include "async_simple/coro/SyncAwait.h"
-#include "async_simple/executors/SimpleExecutor.h"
 #include "executor/tunnel_executor.h"
 #include "tunnel/pipeline.h"
 #include "tunnel/sink.h"

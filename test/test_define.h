@@ -22,6 +22,9 @@
 #define protected public
 #define private public
 
+#include <condition_variable>
+#include <mutex>
+
 #include "async_simple/Try.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "async_simple/executors/SimpleExecutor.h"
@@ -32,6 +35,30 @@
 #include "tunnel/source.h"
 
 using namespace tunnel;
+
+class EventCount {
+ public:
+  explicit EventCount(size_t c) : count_(c) {}
+
+  void Notify() {
+    std::unique_lock<std::mutex> guard(mut_);
+    if (count_ == 0) {
+      return;
+    }
+    count_ -= 1;
+    cv_.notify_all();
+  }
+
+  void Wait() {
+    std::unique_lock<std::mutex> guard(mut_);
+    cv_.wait(guard, [this]() -> bool { return this->count_ == 0; });
+  }
+
+ private:
+  size_t count_;
+  std::condition_variable cv_;
+  std::mutex mut_;
+};
 
 namespace tunnel {
 
