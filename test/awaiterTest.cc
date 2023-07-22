@@ -103,13 +103,15 @@ TEST(awaiterTest, basic) {
   EXPECT_EQ(read_n, 1024);
   EXPECT_EQ(read_msg, std::string(1024, 'a'));
 
+  bool conn_succ = true;
   auto task2 = [&]() -> Lazy<> {
     asio::ip::tcp::socket socket(io.ctx_);
-    co_await ip::tcp::SocketConnectAwaiter(socket,
-                                           asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12346));
+    conn_succ = co_await ip::tcp::SocketConnectAwaiter(
+        socket, asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12346));
   };
   // connection refused exception
-  EXPECT_THROW(syncAwait(task2()), std::runtime_error);
+  syncAwait(task2());
+  EXPECT_FALSE(conn_succ);
   std::string read_msg2;
   auto accept_task = [&]() -> Lazy<> {
     asio::ip::tcp::acceptor accept(io.ctx_,

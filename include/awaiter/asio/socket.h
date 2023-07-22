@@ -56,7 +56,7 @@ class SocketConnectAwaiter : public SocketAwaiterBase {
 
   bool await_ready() const noexcept { return false; }
 
-  void await_resume() { await_resume_or_throw(); }
+  bool await_resume() { return succ_; }
 
  private:
   asio::ip::tcp::socket& socket_;

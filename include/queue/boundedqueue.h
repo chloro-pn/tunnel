@@ -42,44 +42,50 @@ class BoundedQueue {
   explicit BoundedQueue(size_t capacity) : capacity_(capacity) {}
 
   Lazy<element_type> Pop() noexcept {
-    auto lock = co_await mut_.coScopedLock();
+    co_await mut_.coLock();
     if (queue_.empty()) {
       co_await empty_cv_.wait(mut_, [&]() { return !this->queue_.empty(); });
     }
     element_type result = std::move(queue_.front());
     queue_.pop_front();
+    mut_.unlock();
     filled_cv_.notifyOne();
     co_return result;
   }
 
   Lazy<Try<element_type>> TryPop() noexcept {
-    auto lock = co_await mut_.coScopedLock();
+    co_await mut_.coLock();
     if (queue_.empty()) {
+      mut_.unlock();
       co_return Try<element_type>{};
     }
     element_type result = std::move(queue_.front());
     queue_.pop_front();
+    mut_.unlock();
     filled_cv_.notifyOne();
     co_return Try<element_type>(std::move(result));
   }
 
   template <typename T2>
   Lazy<void> Push(T2 &&element) noexcept {
-    auto lock = co_await mut_.coScopedLock();
+    co_await mut_.coLock();
     if (queue_.size() == this->Capacity()) {
       co_await filled_cv_.wait(mut_, [&]() { return this->queue_.size() < this->Capacity(); });
     }
     queue_.emplace_back(std::forward<T2>(element));
+    mut_.unlock();
     empty_cv_.notifyOne();
   }
 
   template <typename T2>
   Lazy<bool> TryPush(T2 &&element) noexcept {
-    auto lock = co_await mut_.coScopedLock();
+    co_await mut_.coLock();
     if (queue_.size() == Capacity()) {
+      mut_.unlock();
       co_return false;
     }
     queue_.emplace_back(std::forward<T2>(element));
+    mut_.unlock();
     empty_cv_.notifyOne();
     co_return true;
   }
