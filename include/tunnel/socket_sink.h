@@ -77,6 +77,17 @@ class SocketSink : public Sink<T> {
     co_return;
   }
 
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    if (connected_) {
+      assert(socket_.is_open());
+      socket_.close();
+      connected_ = false;
+    }
+    Channel<T>& input = this->GetInputPort();
+    co_await this->close_input(input, this->input_count_);
+    co_return;
+  }
+
  private:
   asio::io_context& ctx_;
   std::string ip_;

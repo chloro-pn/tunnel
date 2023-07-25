@@ -31,11 +31,14 @@ class SocketSource : public Source<T> {
   }
 
   virtual async_simple::coro::Lazy<void> after_work() override {
-    if (connected_ == true) {
-      assert(socket_.is_open());
-      socket_.close();
-      connected_ = false;
-    }
+    CloseSocketIfNot();
+    co_return;
+  }
+
+  virtual async_simple::coro::Lazy<void> hosted_mode() override {
+    CloseSocketIfNot();
+    Channel<T>& output = this->GetOutputPort();
+    co_await this->close_output(output);
     co_return;
   }
 
@@ -66,6 +69,14 @@ class SocketSource : public Source<T> {
   uint16_t port_;
   asio::ip::tcp::socket socket_;
   bool connected_;
+
+  void CloseSocketIfNot() {
+    if (connected_ == true) {
+      assert(socket_.is_open());
+      socket_.close();
+      connected_ = false;
+    }
+  }
 };
 
 }  // namespace tunnel
