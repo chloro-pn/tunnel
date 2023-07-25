@@ -100,8 +100,7 @@ int main() {
   // Set NumSink node for all leaf nodes
   pipeline.SetSink(std::make_unique<NumSink>(result, "sink"));
 
-  std::cout << "pipeline dump : " << std::endl;
-  std::cout << pipeline.Dump() << std::endl;
+  pipeline.DumpToFile("number_pipeline.txt");
 
   tunnel::TunnelExecutor ex(1);
   syncAwait(std::move(pipeline).Run().via(&ex));

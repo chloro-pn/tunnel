@@ -62,6 +62,7 @@ int main() {
   auto id = pipe.AddSource(std::make_unique<MySource>());
   pipe.AddTransform(id, std::make_unique<MyTransform>());
   pipe.SetSink(std::make_unique<MySink>());
+  std::cout << pipe.Dump() << std::endl;
   tunnel::TunnelExecutor ex(2);
   async_simple::coro::syncAwait(std::move(pipe).Run().via(&ex));
   return 0;

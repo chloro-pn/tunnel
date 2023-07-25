@@ -18,6 +18,7 @@
 #define TUNNEL_PIPELINE_H
 
 #include <cassert>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <sstream>
@@ -294,6 +295,13 @@ class Pipeline {
     }
     result << "the pipeline is " << (IsCompleted() ? "completed" : "incompleted") << "\n";
     return result.str();
+  }
+
+  void DumpToFile(const std::string& file) const {
+    auto dump = Dump();
+    std::ofstream out(file);
+    out << dump;
+    out.close();
   }
 
   void BindExecutorForProcessor(uint64_t id, async_simple::Executor* ex) {

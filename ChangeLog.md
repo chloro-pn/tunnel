@@ -25,3 +25,7 @@
 * add new awaiter SocketAcceptAwaiter
 * replace SimpleExecutor in some test with TunnelExecutor (fix occasionally core)
 
+##### [2023-7-25]
+* add new concept HasTunnelSerializeSpecialization and HasTunnelDeserializeSpecialization
+* add socket_source and socket_sink
+* add new tool pipeline_draw.py
