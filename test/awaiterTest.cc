@@ -17,7 +17,6 @@
 #include <chrono>
 #include <thread>
 
-#include "asio/executor_work_guard.hpp"
 #include "async_simple/coro/Lazy.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "awaiter/asio/socket.h"
@@ -27,28 +26,6 @@
 
 using namespace tunnel;
 using namespace async_simple::coro;
-
-struct IoContextRunner {
-  asio::io_context ctx_;
-  asio::executor_work_guard<asio::io_context::executor_type> guard_;
-  std::thread worker_;
-
-  IoContextRunner() : guard_(asio::make_work_guard(ctx_)) {
-    worker_ = std::thread([&] {
-      try {
-        this->ctx_.run();
-      } catch (const std::exception& e) {
-        std::printf("io_context exception : %s\n", e.what());
-      }
-    });
-  }
-
-  ~IoContextRunner() {
-    guard_.reset();
-    ctx_.stop();
-    worker_.join();
-  }
-};
 
 class EchoServer {
  public:
@@ -103,13 +80,13 @@ TEST(awaiterTest, basic) {
   EXPECT_EQ(read_n, 1024);
   EXPECT_EQ(read_msg, std::string(1024, 'a'));
 
-  auto task2 = [&]() -> Lazy<> {
+  auto task2 = [&]() -> Lazy<bool> {
     asio::ip::tcp::socket socket(io.ctx_);
-    co_await ip::tcp::SocketConnectAwaiter(socket,
-                                           asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12346));
+    co_return co_await ip::tcp::SocketConnectAwaiter(
+        socket, asio::ip::tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12346));
   };
   // connection refused exception
-  EXPECT_THROW(syncAwait(task2()), std::runtime_error);
+  EXPECT_EQ(syncAwait(task2()), false);
   std::string read_msg2;
   auto accept_task = [&]() -> Lazy<> {
     asio::ip::tcp::acceptor accept(io.ctx_,
@@ -134,9 +111,9 @@ TEST(awaiterTest, basic) {
   };
   tunnel::TunnelExecutor ex(2);
   EventCount ec(2);
-  accept_task().via(&ex).start([&](auto&&) { ec.Notify(); });
+  accept_task().via(&ex).start([&](auto&&) { ec.Succ(); });
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  client_task().via(&ex).start([&](auto&&) { ec.Notify(); });
+  client_task().via(&ex).start([&](auto&&) { ec.Succ(); });
   ec.Wait();
   EXPECT_EQ(read_msg2, std::string(1024, 'c'));
 }

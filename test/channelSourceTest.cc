@@ -28,7 +28,7 @@ TEST(channelSourceTest, basic) {
   Channel<int> input_channel(2);
   channel_source->SetInputChannel(input_channel);
   pipeline.AddSource(std::move(channel_source));
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   int count = 0;
   int sum = 0;
   sink->callback = [&](int v) {

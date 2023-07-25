@@ -24,7 +24,7 @@ using namespace tunnel;
 TEST(channelSinkTest, basic) {
   Channel<int> channel;
   Pipeline<int> pipeline(PipelineOption{.bind_abort_channel = true});
-  pipeline.AddSource(std::make_unique<SourceTest>());
+  pipeline.AddSource(std::make_unique<SourceTest<>>());
   auto channel_sink = std::make_unique<ChannelSink<int>>();
   Channel<int> out_channel(2);
   channel_sink->SetOutputChannel(out_channel);

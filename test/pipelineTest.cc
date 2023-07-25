@@ -28,12 +28,12 @@ TEST(TestPipeline, basic) {
   Pipeline<int> pipeline;
   EXPECT_EQ(pipeline.IsCompleted(), true);
   for(int i = 0; i < 3; ++i) {
-    pipeline.AddSource(std::make_unique<SourceTest>());
+    pipeline.AddSource(std::make_unique<SourceTest<>>());
     EXPECT_EQ(pipeline.IsCompleted(), false);
     EXPECT_EQ(pipeline.GetSources().size(), i + 1);
     EXPECT_EQ(pipeline.GetSinks().size(), 0);
   }
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   int result = 0;
   sink->callback = [&](int v) { result += v; };
   pipeline.SetSink(std::move(sink));
@@ -59,17 +59,17 @@ public:
 
 TEST(TestPipeline, merge) {
   Pipeline<int> pipeline;
-  uint64_t s1_id = pipeline.AddSource(std::make_unique<SourceTest>());
-  uint64_t s2_id = pipeline.AddSource(std::make_unique<SourceTest>());
-  uint64_t s3_id = pipeline.AddSource(std::make_unique<SourceTest>());
+  uint64_t s1_id = pipeline.AddSource(std::make_unique<SourceTest<>>());
+  uint64_t s2_id = pipeline.AddSource(std::make_unique<SourceTest<>>());
+  uint64_t s3_id = pipeline.AddSource(std::make_unique<SourceTest<>>());
   uint64_t noop_id = pipeline.Merge({s1_id, s2_id});
   pipeline.SetSink(std::make_unique<DumpSink<int>>(), {s3_id});
   pipeline.AddTransform(noop_id, std::make_unique<TransformTest>());
 
-  uint64_t s4_id = pipeline.AddSource(std::make_unique<SourceTest>());
+  uint64_t s4_id = pipeline.AddSource(std::make_unique<SourceTest<>>());
   pipeline.Merge(std::make_unique<TransformTest2>(), {s4_id});
   EXPECT_EQ(pipeline.CurrentLeaves().size(), 2);
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   int result = 0;
   sink->callback = [&](int v) { result += v; };
   pipeline.SetSink(std::move(sink));
@@ -101,7 +101,7 @@ public:
 
 TEST(TestPipeline, dispatch) {
   Pipeline<int> pipeline;
-  uint64_t s1_id = pipeline.AddSource(std::make_unique<SourceTest>());
+  uint64_t s1_id = pipeline.AddSource(std::make_unique<SourceTest<>>());
   auto nodes = pipeline.DispatchFrom(s1_id, std::make_unique<DispatchTest>(5));
   EXPECT_EQ(nodes.size(), 5);
   std::vector<size_t> counts(5, 0);
@@ -112,7 +112,7 @@ TEST(TestPipeline, dispatch) {
     index += 1;
     pipeline.AddTransform(each, std::move(tran_tmp));
   }
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   int result = 0;
   sink->callback = [&](int v) { result += v; };
   pipeline.SetSink(std::move(sink));
@@ -126,11 +126,11 @@ TEST(TestPipeline, dispatch) {
 
 TEST(TestPipeline, concat) {
   Pipeline<int> pipeline;
-  uint64_t s1 = pipeline.AddSource(std::make_unique<SourceTest>(150));
-  uint64_t s2 = pipeline.AddSource(std::make_unique<SourceTest>(0));
-  uint64_t s3 = pipeline.AddSource(std::make_unique<SourceTest>(500));
+  uint64_t s1 = pipeline.AddSource(std::make_unique<SourceTest<>>(150));
+  uint64_t s2 = pipeline.AddSource(std::make_unique<SourceTest<>>(0));
+  uint64_t s3 = pipeline.AddSource(std::make_unique<SourceTest<>>(500));
   pipeline.ConcatFrom({s2, s1, s3});
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   std::vector<int> values;
   sink->callback = [&](int v) { values.push_back(v); };
   pipeline.SetSink(std::move(sink));
@@ -145,9 +145,9 @@ TEST(TestPipeline, concat) {
 
 TEST(TestPipeline, channelfork) {
   Pipeline<int> pipeline;
-  auto id = pipeline.AddSource(std::make_unique<SourceTest>());
+  auto id = pipeline.AddSource(std::make_unique<SourceTest<>>());
   pipeline.ForkFrom(id, 3);
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   int result = 0;
   sink->callback = [&](int v) { result += v; };
   pipeline.SetSink(std::move(sink));
@@ -161,12 +161,12 @@ TEST(TestPipeline, channelfork) {
 
 TEST(TestPipeline, pipelineMerge) {
   Pipeline<int> p1(PipelineOption{.name = "pipe1"});
-  auto s1 = p1.AddSource(std::make_unique<SourceTest>(0, "s1"));
-  auto s12 = p1.AddSource(std::make_unique<SourceTest>(0, "s12"));
-  auto sink1 = p1.SetSink(std::make_unique<SinkTest>("sink1"));
+  auto s1 = p1.AddSource(std::make_unique<SourceTest<>>(0, "s1"));
+  auto s12 = p1.AddSource(std::make_unique<SourceTest<>>(0, "s12"));
+  auto sink1 = p1.SetSink(std::make_unique<SinkTest<>>("sink1"));
   Pipeline<int> p2(PipelineOption{.name = "pipe2"});
-  auto s2 = p2.AddSource(std::make_unique<SourceTest>(0, "s2"));
-  auto sink2 = p2.SetSink(std::make_unique<SinkTest>("sink2"));
+  auto s2 = p2.AddSource(std::make_unique<SourceTest<>>(0, "s2"));
+  auto sink2 = p2.SetSink(std::make_unique<SinkTest<>>("sink2"));
   Pipeline<int> merge_pipe = MergePipeline<int>(std::move(p1), std::move(p2));
   EXPECT_EQ(merge_pipe.GetName(), "pipe1-merge-pipe2");
   EXPECT_TRUE(merge_pipe.IsSource(s1));
@@ -183,7 +183,7 @@ TEST(TestPipeline, throwException) {
   PipelineOption option;
   option.bind_abort_channel = true;
   Pipeline<int> pipeline(option);
-  auto s1 = pipeline.AddSource(std::make_unique<SourceTest>());
+  auto s1 = pipeline.AddSource(std::make_unique<SourceTest<>>());
   auto t1 = pipeline.AddTransform(s1, std::make_unique<TransformTest>());
   pipeline.ForkFrom(t1, 3);
   pipeline.SetSink(std::make_unique<ThrowSinkTest>());
@@ -226,11 +226,11 @@ TEST(TestPipeline, bindExecutor) {
   async_simple::executors::SimpleExecutor ex2(2);
 
   Pipeline<int> pipeline;
-  auto s1 = pipeline.AddSource(std::make_unique<SourceTest>());
+  auto s1 = pipeline.AddSource(std::make_unique<SourceTest<>>());
   async_simple::Executor* trans_ex = nullptr;
   auto trans = std::make_unique<BindExecutorTransform>(trans_ex);
   auto t1 = pipeline.AddTransform(s1, std::move(trans));
-  pipeline.SetSink(std::make_unique<SinkTest>());
+  pipeline.SetSink(std::make_unique<SinkTest<>>());
   pipeline.BindExecutorForProcessor(t1, &ex2);
   async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex1));
   EXPECT_EQ(trans_ex, &ex2);
@@ -251,19 +251,19 @@ TEST(TestPipeline, share_abort_channel) {
   tunnel::TunnelExecutor ex(2);
   tunnel::Channel<int> abort_channel(10);
   Pipeline<int> p1{PipelineOption{.bind_abort_channel = true}};
-  auto s1 = p1.AddSource(std::make_unique<SourceTest>());
+  auto s1 = p1.AddSource(std::make_unique<SourceTest<>>());
   p1.AddTransform(s1, std::make_unique<TransformTest>());
   p1.SetSink(std::make_unique<ThrowSinkTest>());
   Pipeline<int> p2{PipelineOption{.bind_abort_channel = true}};
   p2.AddSource(std::make_unique<NeverStopSource>());
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   int result = 0;
   sink->callback = [&](int v) { result += v; };
   p2.SetSink(std::move(sink));
   p1.SetAbortChannel(abort_channel);
   p2.SetAbortChannel(abort_channel);
   EventCount ec(1);
-  std::move(p1).Run().via(&ex).start([&](auto&& r) { ec.Notify(); });
+  std::move(p1).Run().via(&ex).start([&](auto&& r) { ec.Succ(); });
   // 由于中止信息缓存在channel中，因此p1可以还没开始运行、可以正在抛出异常、甚至可以已经终止了运行，中止信息依然会传递给p2
   async_simple::coro::syncAwait(std::move(p2).Run().via(&ex));
   ec.Wait();

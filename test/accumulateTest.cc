@@ -39,7 +39,7 @@ TEST(accumulateTest, basic) {
   async_simple::executors::SimpleExecutor ex(2);
   Pipeline<int> pipeline;
   int result = 0;
-  auto id = pipeline.AddSource(std::make_unique<SourceTest>());
+  auto id = pipeline.AddSource(std::make_unique<SourceTest<>>());
   pipeline.AddTransform(id, std::make_unique<AccumulateTest>(result));
   pipeline.SetSink(std::make_unique<DumpSink<int>>());
   async_simple::coro::syncAwait(std::move(pipeline).Run().via(&ex));

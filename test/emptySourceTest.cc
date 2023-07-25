@@ -24,7 +24,7 @@ using namespace tunnel;
 TEST(emptySourceTest, basic) {
   Pipeline<int> pipeline;
   pipeline.AddSource(std::make_unique<EmptySource<int>>());
-  auto sink = std::make_unique<SinkTest>();
+  auto sink = std::make_unique<SinkTest<>>();
   int count = 0;
   sink->callback = [&](int v) { count += 1; };
   pipeline.SetSink(std::move(sink));

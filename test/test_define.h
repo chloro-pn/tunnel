@@ -25,40 +25,18 @@
 #include <condition_variable>
 #include <mutex>
 
+#include "asio.hpp"
 #include "async_simple/Try.h"
 #include "async_simple/coro/SyncAwait.h"
 #include "async_simple/executors/SimpleExecutor.h"
 #include "tunnel/dispatch.h"
+#include "tunnel/event_count.h"
 #include "tunnel/pipeline.h"
 #include "tunnel/simple_transform.h"
 #include "tunnel/sink.h"
 #include "tunnel/source.h"
 
 using namespace tunnel;
-
-class EventCount {
- public:
-  explicit EventCount(size_t c) : count_(c) {}
-
-  void Notify() {
-    std::unique_lock<std::mutex> guard(mut_);
-    if (count_ == 0) {
-      return;
-    }
-    count_ -= 1;
-    cv_.notify_all();
-  }
-
-  void Wait() {
-    std::unique_lock<std::mutex> guard(mut_);
-    cv_.wait(guard, [this]() -> bool { return this->count_ == 0; });
-  }
-
- private:
-  size_t count_;
-  std::condition_variable cv_;
-  std::mutex mut_;
-};
 
 namespace tunnel {
 
@@ -68,18 +46,19 @@ inline size_t GetBytes(const int& v) {
 }
 }  // namespace tunnel
 
-class SinkTest : public Sink<int> {
+template <typename T = int>
+class SinkTest : public Sink<T> {
  public:
-  explicit SinkTest(const std::string& name = "") : Sink<int>(name) {}
+  explicit SinkTest(const std::string& name = "") : Sink<T>(name) {}
 
-  virtual async_simple::coro::Lazy<void> consume(int &&value) override {
+  virtual async_simple::coro::Lazy<void> consume(T&& value) override {
     if (callback) {
       callback(value);
     }
     co_return;
   }
 
-  std::function<void(int)> callback;
+  std::function<void(T)> callback;
 };
 
 class ThrowSinkTest : public Sink<int> {
@@ -92,19 +71,42 @@ class ThrowSinkTest : public Sink<int> {
   }
 };
 
-class SourceTest : public Source<int> {
+template <typename T = int>
+class SourceTest : public Source<T> {
  public:
-  explicit SourceTest(int initv = 0, const std::string& name = "") : Source<int>(name), init_value(initv) {}
+  explicit SourceTest(int initv = 0, const std::string& name = "") : Source<T>(name), init_value(initv) {}
 
-  virtual async_simple::coro::Lazy<std::optional<int>> generate() override {
+  virtual async_simple::coro::Lazy<std::optional<T>> generate() override {
     if (num < 100) {
       num = num + 1;
-      co_return num + init_value;
+      co_return T(num + init_value);
     }
-    co_return std::optional<int>{};
+    co_return std::optional<T>{};
   }
   int num = 0;
   int init_value = 0;
+};
+
+struct IoContextRunner {
+  asio::io_context ctx_;
+  asio::executor_work_guard<asio::io_context::executor_type> guard_;
+  std::thread worker_;
+
+  IoContextRunner() : guard_(asio::make_work_guard(ctx_)) {
+    worker_ = std::thread([&] {
+      try {
+        this->ctx_.run();
+      } catch (const std::exception& e) {
+        std::printf("io_context exception : %s\n", e.what());
+      }
+    });
+  }
+
+  ~IoContextRunner() {
+    guard_.reset();
+    ctx_.stop();
+    worker_.join();
+  }
 };
 
 #endif
