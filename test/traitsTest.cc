@@ -17,6 +17,7 @@
 #include <string>
 
 #include "gtest/gtest.h"
+#include "tunnel/sedeserialize.h"
 #include "tunnel/tunnel_traits.h"
 
 namespace tunnel {

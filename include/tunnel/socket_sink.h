@@ -7,8 +7,8 @@
 
 #include "awaiter/asio/socket.h"
 #include "tunnel/package.h"
+#include "tunnel/sedeserialize.h"
 #include "tunnel/sink.h"
-#include "tunnel/tunnel_traits.h"
 
 namespace tunnel {
 

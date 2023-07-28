@@ -2,7 +2,6 @@
 #define TUNNEL_TRAITS_H
 
 #include <concepts>
-#include <cstddef>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -42,14 +41,6 @@ requires RecordTransferredBytes<T> size_t GetTransferredBytes(const T& v) {
 template <typename T>
 std::string Serialize(const T& v) = delete;
 
-template <>
-inline std::string Serialize(const uint32_t& v) {
-  std::string buf;
-  buf.resize(sizeof(uint32_t));
-  memcpy(&buf[0], &v, sizeof(uint32_t));
-  return buf;
-}
-
 template <typename T>
 concept HasTunnelSerializeSpecialization = requires(const T& v) {
   { Serialize(v) } -> std::same_as<std::string>;
@@ -57,13 +48,6 @@ concept HasTunnelSerializeSpecialization = requires(const T& v) {
 
 template <typename T>
 T Deserialize(std::string_view view) = delete;
-
-template <>
-inline uint32_t Deserialize(std::string_view view) {
-  uint32_t v = {0};
-  memcpy(&v, &view[0], view.size());
-  return v;
-}
 
 template <typename T>
 concept HasTunnelDeserializeSpecialization = requires(std::string_view v) {
