@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <string>
+#include <array>
 
 #include "awaiter/asio/socket.h"
 #include "tunnel/package.h"
@@ -43,13 +44,13 @@ class SocketSource : public Source<T> {
   }
 
   async_simple::coro::Lazy<std::optional<T>> Read() {
-    std::string buf;
-    buf.resize(sizeof(uint32_t), '0');
+    std::array<char, sizeof(uint32_t)> buf;
     size_t n = co_await ip::tcp::SocketReadAwaiter(socket_, asio::buffer(buf));
     if (n != sizeof(uint32_t)) {
       throw std::runtime_error("socket source read package error");
     }
-    uint32_t length = Deserialize<uint32_t>(buf);
+    std::string_view buf_view(&buf[0], buf.size());
+    uint32_t length = Deserialize<uint32_t>(buf_view);
     std::string databuf(length, '0');
     n = co_await ip::tcp::SocketReadAwaiter(socket_, asio::buffer(databuf));
     if (n != databuf.size()) {
