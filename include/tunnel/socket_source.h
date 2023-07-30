@@ -1,9 +1,9 @@
 #ifndef TUNNEL_SOCKET_SOURCE_H
 #define TUNNEL_SOCKET_SOURCE_H
 
+#include <array>
 #include <cassert>
 #include <string>
-#include <array>
 
 #include "awaiter/asio/socket.h"
 #include "tunnel/package.h"
