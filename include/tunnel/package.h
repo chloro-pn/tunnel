@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+#include "tunnel/sedeserialize.h"
 #include "tunnel/tunnel_traits.h"
 
 namespace tunnel {
@@ -15,24 +16,24 @@ struct package {
 };
 
 template <>
-inline std::string Serialize(const package& v) {
-  std::string buf;
-  buf.push_back(v.eof == true ? 'e' : 'n');
-  buf.append(v.bin_data);
-  return buf;
+inline void Serialize(const package& v, std::string& appender) {
+  appender.push_back(v.eof == true ? 'e' : 'n');
+  Serialize<std::string>(v.bin_data, appender);
+  return;
 }
 
 template <>
-inline package Deserialize(std::string_view view) {
+inline package Deserialize(std::string_view view, size_t& offset) {
   package v;
   if (view.empty()) {
     throw std::runtime_error("deserialize package error, empty");
   }
-  if (view[0] != 'e' && view[0] != 'n') {
+  if (view[offset] != 'e' && view[offset] != 'n') {
     throw std::runtime_error("deserialize package error, parse invalid field");
   }
-  v.eof = view[0] == 'e' ? true : false;
-  v.bin_data = view.substr(1);
+  v.eof = view[offset] == 'e' ? true : false;
+  offset += sizeof(char);
+  v.bin_data = Deserialize<std::string>(view, offset);
   return v;
 }
 

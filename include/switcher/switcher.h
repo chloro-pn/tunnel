@@ -23,6 +23,20 @@ struct request_package {
   // will add more information, like push/pop_ip:port、push/pop pipeline name etc for debug
 };
 
+template <>
+inline void Serialize(const request_package& v, std::string& appender) {
+  Serialize<std::string>(v.topic, appender);
+  Serialize<int>(v.type, appender);
+}
+
+template <>
+inline request_package Deserialize(std::string_view view, size_t& offset) {
+  request_package rp;
+  rp.topic = Deserialize<std::string>(view, offset);
+  rp.type = Deserialize<int>(view, offset);
+  return rp;
+}
+
 struct response_package {
   std::string topic;
   // only for push and pop request
@@ -142,9 +156,11 @@ class Switcher {
 
   template <typename T>
   asio::awaitable<void> write_package(socket& s, const T& pkg) {
-    auto buf = Serialize<T>(pkg);
+    std::string buf;
+    Serialize<T>(pkg, buf);
     assert(buf.size() <= std::numeric_limits<uint32_t>::max());
-    auto length_buf = Serialize<uint32_t>(buf.size());
+    std::string length_buf;
+    Serialize<uint32_t>(buf.size(), length_buf);
     co_await asio::write(s, asio::buffer(length_buf), asio::use_awaitable);
     co_await asio::write(s, asio::buffer(buf), asio::use_awaitable);
     co_return;

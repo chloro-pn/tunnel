@@ -1,6 +1,7 @@
 #ifndef TUNNEL_TRAITS_H
 #define TUNNEL_TRAITS_H
 
+#include <cassert>
 #include <concepts>
 #include <string>
 #include <string_view>
@@ -39,19 +40,27 @@ requires RecordTransferredBytes<T> size_t GetTransferredBytes(const T& v) {
 }
 
 template <typename T>
-std::string Serialize(const T& v) = delete;
+void Serialize(const T& v, std::string& appender) = delete;
 
 template <typename T>
-concept HasTunnelSerializeSpecialization = requires(const T& v) {
-  { Serialize(v) } -> std::same_as<std::string>;
+concept HasTunnelSerializeSpecialization = requires(const T& v, std::string& appender) {
+  { Serialize(v, appender) } -> std::same_as<void>;
 };
 
 template <typename T>
-T Deserialize(std::string_view view) = delete;
+T Deserialize(std::string_view view, size_t& offset) = delete;
 
 template <typename T>
-concept HasTunnelDeserializeSpecialization = requires(std::string_view v) {
-  { Deserialize<T>(v) } -> std::same_as<T>;
+T Deserialize(std::string_view view) {
+  size_t offset = 0;
+  T v = Deserialize<T>(view, offset);
+  assert(offset == view.size());
+  return v;
+}
+
+template <typename T>
+concept HasTunnelDeserializeSpecialization = requires(std::string_view v, size_t& offset) {
+  { Deserialize<T>(v, offset) } -> std::same_as<T>;
 };
 
 }  // namespace tunnel
