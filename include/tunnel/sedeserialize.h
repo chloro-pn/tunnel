@@ -2,6 +2,8 @@
 #define TUNNEL_SEDESERIALIZE_H
 
 #include <cstring>
+#include <limits>
+#include <string>
 
 #include "tunnel/tunnel_traits.h"
 #include "tunnel/util.h"
@@ -39,7 +41,7 @@ DECLARE_INTEGRAL_SERIALIZE(int)
 template <>
 inline void Serialize(const std::string& v, std::string& appender) {
   assert(v.size() <= std::numeric_limits<uint32_t>::max());
-  Serialize<uint32_t>(static_cast<uint32_t>(v.size()), appender);
+  Serialize(static_cast<uint32_t>(v.size()), appender);
   appender.append(v);
 }
 

@@ -47,12 +47,12 @@ class SocketSink : public Sink<T> {
   async_simple::coro::Lazy<void> Write(T&& value) {
     package pkg;
     pkg.eof = false;
-    Serialize<T>(value, pkg.bin_data);
+    Serialize(value, pkg.bin_data);
     std::string buf;
-    Serialize<package>(pkg, buf);
+    Serialize(pkg, buf);
     uint32_t length = buf.size();
     std::string length_buf;
-    Serialize<uint32_t>(length, length_buf);
+    Serialize(length, length_buf);
     co_await ip::tcp::SocketWriteAwaiter(socket_, asio::buffer(length_buf));
     co_await ip::tcp::SocketWriteAwaiter(socket_, asio::buffer(buf));
     co_return;
@@ -62,10 +62,10 @@ class SocketSink : public Sink<T> {
     package pkg;
     pkg.eof = true;
     std::string buf;
-    Serialize<package>(pkg, buf);
+    Serialize(pkg, buf);
     uint32_t length = buf.size();
     std::string length_buf;
-    Serialize<uint32_t>(length, length_buf);
+    Serialize(length, length_buf);
     co_await ip::tcp::SocketWriteAwaiter(socket_, asio::buffer(length_buf));
     co_await ip::tcp::SocketWriteAwaiter(socket_, asio::buffer(buf));
     co_return;

@@ -66,14 +66,16 @@ class SocketConnectAwaiter : public SocketAwaiterBase {
 template <typename MutableBufferSequence>
 class SocketReadAwaiter : public SocketAwaiterBase {
  public:
-  SocketReadAwaiter(asio::ip::tcp::socket& socket, const MutableBufferSequence& buf)
-      : socket_(socket), buf_(buf), transferred_(0) {}
+  SocketReadAwaiter(asio::ip::tcp::socket& socket, const MutableBufferSequence& buf, bool throw_eof = true)
+      : socket_(socket), buf_(buf), transferred_(0), throw_eof_(throw_eof) {}
 
   bool await_ready() const noexcept { return false; }
 
   void await_suspend(std::coroutine_handle<> h) {
     asio::async_read(socket_, buf_, [this, h](asio::error_code ec, size_t transferred) mutable {
       if (ec && ec != asio::error::eof) {
+        handle_error(ec);
+      } else if (ec && ec == asio::error::eof && throw_eof_ == true) {
         handle_error(ec);
       } else {
         transferred_ = transferred;
@@ -88,6 +90,7 @@ class SocketReadAwaiter : public SocketAwaiterBase {
   asio::ip::tcp::socket& socket_;
   const MutableBufferSequence& buf_;
   size_t transferred_;
+  bool throw_eof_;
 };
 
 template <typename ConstBufferSequence>

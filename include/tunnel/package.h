@@ -18,7 +18,7 @@ struct package {
 template <>
 inline void Serialize(const package& v, std::string& appender) {
   appender.push_back(v.eof == true ? 'e' : 'n');
-  Serialize<std::string>(v.bin_data, appender);
+  Serialize(v.bin_data, appender);
   return;
 }
 

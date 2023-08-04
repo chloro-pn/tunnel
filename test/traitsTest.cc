@@ -53,9 +53,9 @@ namespace tunnel {
 
 template <>
 inline void Serialize(const TestSerialize& v, std::string& appender) {
-  Serialize<int>(v.a, appender);
-  Serialize<uint32_t>(v.b, appender);
-  Serialize<std::string>(v.c, appender);
+  Serialize(v.a, appender);
+  Serialize(v.b, appender);
+  Serialize(v.c, appender);
 }
 
 template <>
@@ -77,9 +77,11 @@ TEST(traitTest, serialize) {
   ts.b = 100;
   ts.c = "hello world";
   std::string buf;
-  tunnel::Serialize<TestSerialize>(ts, buf);
+  tunnel::Serialize(ts, buf);
   auto ts2 = tunnel::Deserialize<TestSerialize>(buf);
   EXPECT_EQ(ts2.a, ts.a);
   EXPECT_EQ(ts2.b, ts.b);
   EXPECT_EQ(ts2.c, ts.c);
+
+  EXPECT_EQ(tunnel::HasTunnelSerializeSpecialization<int>, true);
 }

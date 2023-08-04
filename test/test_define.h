@@ -71,13 +71,13 @@ class ThrowSinkTest : public Sink<int> {
   }
 };
 
-template <typename T = int>
+template <typename T = int, size_t generate_count = 100>
 class SourceTest : public Source<T> {
  public:
   explicit SourceTest(int initv = 0, const std::string& name = "") : Source<T>(name), init_value(initv) {}
 
   virtual async_simple::coro::Lazy<std::optional<T>> generate() override {
-    if (num < 100) {
+    if (static_cast<size_t>(num) < generate_count) {
       num = num + 1;
       co_return T(num + init_value);
     }
