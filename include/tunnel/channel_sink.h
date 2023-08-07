@@ -39,11 +39,13 @@ class ChannelSink : public Sink<T> {
   virtual async_simple::coro::Lazy<void> after_work() override {
     Channel<T>& output_channel = this->GetOutputPort();
     co_await output_channel.GetQueue().Push(std::optional<T>{});
+    co_return;
   }
 
   virtual async_simple::coro::Lazy<void> consume(T&& value) override {
     Channel<T>& output_channel = this->GetOutputPort();
     co_await this->Push(std::move(value), output_channel);
+    co_return;
   }
 };
 

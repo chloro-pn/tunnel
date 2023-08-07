@@ -22,6 +22,9 @@ class MultiIOneO : public Processor<T> {
 
   void AddInputPort(const Channel<T>& channel) { inputs_.emplace_back(channel); }
 
+  // API
+  size_t Size() const { return input_size_; }
+
  private:
   virtual void before_work() {
     if (inputs_.size() != input_size_) {
@@ -40,9 +43,6 @@ class MultiIOneO : public Processor<T> {
     co_await this->close_output(output);
     co_return;
   }
-
-  // API
-  size_t Size() const { return input_size_; }
 
  protected:
   // API

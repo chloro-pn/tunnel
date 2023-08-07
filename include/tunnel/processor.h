@@ -44,8 +44,6 @@ static uint64_t GenerateId() {
 }
 }  // namespace detail
 
-constexpr size_t max_yeild_count = 10;
-
 template <typename T>
 class Pipeline;
 
@@ -138,8 +136,7 @@ class Processor {
         --input_count;
         if (input_count == 0) {
           // write EOF information back into input so that other nodes reading this queue can also read EOF information
-          // useless now
-          // co_await Push(std::optional<T>{}, input);
+          // [delete] useless now co_await Push(std::optional<T>{}, input);
           input.reset();
           should_return = true;
         }
@@ -195,9 +192,9 @@ class Processor {
       while (true) {
         std::optional<T> value = co_await input.GetQueue().Pop();
         if (!value.has_value()) {
-          assert(input_count_ > 0);
-          --input_count_;
-          if (input_count_ == 0) {
+          assert(input_count > 0);
+          --input_count;
+          if (input_count == 0) {
             co_return;
           }
         }
