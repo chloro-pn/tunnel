@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdlib>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <string>
@@ -17,6 +18,7 @@ namespace tunnel {
 constexpr int request_type_push = 0x00;
 constexpr int request_type_pop = 0x01;
 constexpr int request_type_check_topic_exist = 0x02;
+constexpr int request_type_clean_topic = 0x03;
 
 struct request_package {
   std::string topic;
@@ -148,6 +150,8 @@ class Switcher {
     worker_.join();
   }
 
+  asio::io_context& GetIoContext() { return ctx_; }
+
  private:
   asio::awaitable<void> start_accept() {
     acceptor accept(ctx_, ep_);
@@ -159,20 +163,24 @@ class Switcher {
   }
 
   asio::awaitable<void> handle(socket s) {
-    bool eof = false;
-    request_package pkg = co_await read_package<request_package>(s, eof);
-    if (eof == true) {
-      // closed by client
+    try {
+      bool eof = false;
+      request_package pkg = co_await read_package<request_package>(s, eof);
+      if (eof == true) {
+        // closed by client
+        co_return;
+      }
+      if (pkg.type == request_type_push) {
+        handle_push_request(std::move(s), pkg);
+      } else if (pkg.type == request_type_pop) {
+        handle_pop_request(std::move(s), pkg);
+      } else {
+        throw std::runtime_error("invalid request type for switcher now.");
+      }
       co_return;
+    } catch (const std::runtime_error& e) {
+      std::cerr << "switcher handle throw exception : " << e.what() << std::endl;
     }
-    if (pkg.type == request_type_push) {
-      handle_push_request(std::move(s), pkg);
-    } else if (pkg.type == request_type_pop) {
-      handle_pop_request(std::move(s), pkg);
-    } else {
-      throw std::runtime_error("invalid request type for switcher now.");
-    }
-    co_return;
   }
 
   void handle_push_request(socket s, const request_package& pkg) {
@@ -201,19 +209,23 @@ class Switcher {
 
   // read data from push_socket and write to pop_socket
   asio::awaitable<void> transfer_data(socket push_socket, socket pop_socket, std::string topic) {
-    data_package dpkg = co_await read_package<data_package>(push_socket);
-    co_await write_package<data_package>(pop_socket, dpkg);
-    response_package rpkg;
-    rpkg.peer_addr = get_remote_ipport(pop_socket);
-    rpkg.topic = topic;
-    rpkg.wait_ms = 0;  // todo
-    co_await write_package<response_package>(push_socket, rpkg);
-    rpkg.peer_addr = get_remote_ipport(push_socket);
-    co_await write_package<response_package>(pop_socket, rpkg);
-    // try to handle next request
-    asio::co_spawn(ctx_, handle(std::move(push_socket)), asio::detached);
-    asio::co_spawn(ctx_, handle(std::move(pop_socket)), asio::detached);
-    co_return;
+    try {
+      data_package dpkg = co_await read_package<data_package>(push_socket);
+      co_await write_package<data_package>(pop_socket, dpkg);
+      response_package rpkg;
+      rpkg.peer_addr = get_remote_ipport(pop_socket);
+      rpkg.topic = topic;
+      rpkg.wait_ms = 0;  // todo
+      co_await write_package<response_package>(push_socket, rpkg);
+      rpkg.peer_addr = get_remote_ipport(push_socket);
+      co_await write_package<response_package>(pop_socket, rpkg);
+      // try to handle next request
+      asio::co_spawn(ctx_, handle(std::move(push_socket)), asio::detached);
+      asio::co_spawn(ctx_, handle(std::move(pop_socket)), asio::detached);
+      co_return;
+    } catch (const std::runtime_error& e) {
+      std::cerr << "switcher transfer data throw error : " << e.what() << std::endl;
+    }
   }
 
   std::string get_local_ipport(socket& s) {

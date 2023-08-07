@@ -26,6 +26,12 @@ git_repository(
     commit = "584e1f1c8d69f1ebd826c674beea0dababdd9ae0",
 )
 
+git_repository(
+    name = "gflags",
+    remote = "https://github.com/gflags/gflags",
+    tag = "v2.2.2",
+)
+
 new_git_repository(
     name = "mpmcqueue",
     remote = "https://github.com/rigtorp/MPMCQueue",

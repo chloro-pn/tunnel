@@ -26,7 +26,6 @@ TUNNEL_COPTS = select({
 cc_library(
   name = "tunnel",
   hdrs = glob(["include/**/*.h"]),
-  srcs = glob(["src/*.cc"]),
   includes = ["include"],
   copts = TUNNEL_COPTS,
   deps = [
@@ -77,5 +76,16 @@ cc_binary(
   deps = [
     ":tunnel",
     "@async_simple//:simple_executors",
+  ],
+)
+
+cc_binary(
+  name = "switcher_server",
+  srcs = glob(["src/*.cc"]),
+  copts = TUNNEL_COPTS,
+  deps = [
+    ":tunnel",
+    "@asio//:asio",
+    "@gflags//:gflags",
   ],
 )

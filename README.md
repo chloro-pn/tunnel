@@ -26,6 +26,7 @@ This project has the following features:
 * googletest
 * chriskohlhoff/asio
 * rigtorp/MPMCQueue
+* gflags
 
 ## Design
 Firstly, you need to understand several basic concepts:
