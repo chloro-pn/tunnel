@@ -54,6 +54,19 @@ inline std::string Deserialize(std::string_view view, size_t& offset) {
   return std::string(ptr, len);
 }
 
+template <>
+inline void Serialize(const bool& v, std::string& appender) {
+  appender.push_back(v == true ? 't' : 'f');
+}
+
+template <>
+inline bool Deserialize(std::string_view view, size_t& offset) {
+  char c = view[offset];
+  assert(c == 't' || c == 'f');
+  offset += sizeof(char);
+  return c == 't' ? true : false;
+}
+
 }  // namespace tunnel
 
 #endif

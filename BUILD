@@ -32,6 +32,7 @@ cc_library(
     "@async_simple//:async_simple",
     "@mpmcqueue//:mpmc_queue",
     "@asio//:asio",
+    "@spdlog//:spdlog",
   ]
 )
 

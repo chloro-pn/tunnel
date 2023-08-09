@@ -27,6 +27,7 @@ This project has the following features:
 * chriskohlhoff/asio
 * rigtorp/MPMCQueue
 * gflags
+* spdlog
 
 ## Design
 Firstly, you need to understand several basic concepts:

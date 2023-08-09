@@ -34,24 +34,20 @@ using namespace async_simple::coro;
 
 class SwitcherSource : public Source<int> {
  public:
-  SwitcherSource(asio::io_context& ctx) : client_(ctx, "127.0.0.1", 12345), connect_(false), count_(0) {}
+  SwitcherSource(asio::io_context& ctx) : client_(ctx, "127.0.0.1", 12345), connect_(false) {}
 
   virtual async_simple::coro::Lazy<std::optional<int>> generate() override {
-    if (count_ == 10) {
-      co_return std::optional<int>{};
-    }
     if (connect_ == false) {
       co_await client_.Connect();
+      connect_ = true;
     }
-    int v = co_await client_.Pop<int>("test");
-    count_ += 1;
+    auto v = co_await client_.Pop<int>("test");
     co_return v;
   }
 
  private:
   SwitcherClient client_;
   bool connect_;
-  size_t count_;
 };
 
 class SwitcherSink : public Sink<int> {
@@ -61,8 +57,17 @@ class SwitcherSink : public Sink<int> {
   virtual async_simple::coro::Lazy<void> consume(int&& value) override {
     if (connect_ == false) {
       co_await client_.Connect();
+      connect_ = true;
     }
-    co_await client_.Push("test", value);
+    co_await client_.Push("test", std::optional<int>(value));
+    co_return;
+  }
+
+  virtual async_simple::coro::Lazy<void> after_work() override {
+    if (connect_) {
+      co_await client_.Push("test", std::optional<int>{});
+      connect_ = false;
+    }
     co_return;
   }
 

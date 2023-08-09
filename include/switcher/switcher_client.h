@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "asio.hpp"
@@ -78,26 +79,34 @@ class SwitcherClient {
   }
 
   template <typename T>
-  async_simple::coro::Lazy<void> Push(const std::string& topic, T&& value) {
+  async_simple::coro::Lazy<void> Push(const std::string& topic, std::optional<T>&& value) {
     request_package rp;
     rp.topic = topic;
     rp.type = request_type_push;
     co_await async_simple_package::write_package<request_package>(socket_, rp);
     data_package dp;
-    Serialize(value, dp.data);
+    if (value.has_value()) {
+      Serialize(value.value(), dp.data);
+      dp.eof = false;
+    } else {
+      dp.eof = true;
+    }
     co_await async_simple_package::write_package<data_package>(socket_, dp);
     response_package resp = co_await async_simple_package::read_package<response_package>(socket_);
     co_return;
   }
 
   template <typename T>
-  async_simple::coro::Lazy<T> Pop(const std::string& topic) {
+  async_simple::coro::Lazy<std::optional<T>> Pop(const std::string& topic) {
     request_package rp;
     rp.topic = topic;
     rp.type = request_type_pop;
     co_await async_simple_package::write_package<request_package>(socket_, rp);
     data_package dp = co_await async_simple_package::read_package<data_package>(socket_);
     response_package resp = co_await async_simple_package::read_package<response_package>(socket_);
+    if (dp.eof == true) {
+      co_return std::optional<T>{};
+    }
     co_return Deserialize<T>(dp.data);
   }
 

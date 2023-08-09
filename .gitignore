@@ -1,3 +1,4 @@
 .vscode/
 bazel-*
 format.sh
+logs/
