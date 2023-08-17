@@ -110,6 +110,24 @@ class SwitcherClient {
     co_return Deserialize<T>(dp.data);
   }
 
+  async_simple::coro::Lazy<int> CloseTopic(const std::string& topic) {
+    request_package rp;
+    rp.topic = topic;
+    rp.type = request_type_close_topic;
+    co_await async_simple_package::write_package<request_package>(socket_, rp);
+    response_package dp = co_await async_simple_package::read_package<response_package>(socket_);
+    co_return dp.response_code;
+  }
+
+  async_simple::coro::Lazy<bool> CheckTopicExist(const std::string& topic) {
+    request_package rp;
+    rp.topic = topic;
+    rp.type = request_type_check_topic_exist;
+    co_await async_simple_package::write_package<request_package>(socket_, rp);
+    response_package dp = co_await async_simple_package::read_package<response_package>(socket_);
+    co_return dp.response_code == response_ok;
+  }
+
   ~SwitcherClient() {
     if (connected_ == true) {
       socket_.shutdown(socket::shutdown_send);

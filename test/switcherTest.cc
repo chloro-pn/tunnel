@@ -104,5 +104,14 @@ TEST(switcherTest, basic) {
   pipe.SetSink(std::move(sink));
   async_simple::coro::syncAwait(std::move(pipe).Run().via(&ex));
   EXPECT_EQ(result, 55);
+
+  SwitcherClient sc(io.ctx_, "127.0.0.1", 12345);
+  async_simple::coro::syncAwait(sc.Connect().via(&ex));
+  bool topic_exist = async_simple::coro::syncAwait(sc.CheckTopicExist("test").via(&ex));
+  EXPECT_EQ(topic_exist, true);
+  int response_code = async_simple::coro::syncAwait(sc.CloseTopic("test").via(&ex));
+  EXPECT_EQ(response_code, response_ok);
+  topic_exist = async_simple::coro::syncAwait(sc.CheckTopicExist("test").via(&ex));
+  EXPECT_EQ(topic_exist, false);
   server.Stop();
 }

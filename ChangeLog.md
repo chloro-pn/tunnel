@@ -29,3 +29,6 @@
 * add new concept HasTunnelSerializeSpecialization and HasTunnelDeserializeSpecialization
 * add socket_source and socket_sink
 * add new tool pipeline_draw.py
+
+##### [2023-8-17]
+* add switcher new api : check_topic_exist and close_topic

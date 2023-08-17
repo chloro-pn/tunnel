@@ -21,11 +21,20 @@ constexpr int request_type_pop = 0x01;
 constexpr int request_type_check_topic_exist = 0x02;
 constexpr int request_type_close_topic = 0x03;
 
+const char* request_type_str[] = {
+    "request_push",
+    "request_pop",
+    "request_check_topic_exist",
+    "request_close_topic",
+};
+
 constexpr int response_ok = 0x00;
+constexpr int response_topic_not_exist = 0x01;
 
 struct request_package {
   std::string topic;
   int type;  // push, pop, check, query, ...
+  int timeout_ms;
   // will add more information, like push/pop_ip:port、push/pop pipeline name etc for debug
 };
 
@@ -33,6 +42,7 @@ template <>
 inline void Serialize(const request_package& v, std::string& appender) {
   Serialize(v.topic, appender);
   Serialize(v.type, appender);
+  Serialize(v.timeout_ms, appender);
 }
 
 template <>
@@ -40,6 +50,7 @@ inline request_package Deserialize(std::string_view view, size_t& offset) {
   request_package rp;
   rp.topic = Deserialize<std::string>(view, offset);
   rp.type = Deserialize<int>(view, offset);
+  rp.timeout_ms = Deserialize<int>(view, offset);
   return rp;
 }
 
@@ -57,6 +68,7 @@ inline void Serialize(const response_package& v, std::string& appender) {
   Serialize(v.topic, appender);
   Serialize(v.wait_ms, appender);
   Serialize(v.peer_addr, appender);
+  Serialize(v.response_code, appender);
 }
 
 template <>
@@ -65,6 +77,7 @@ inline response_package Deserialize(std::string_view view, size_t& offset) {
   rp.topic = Deserialize<std::string>(view, offset);
   rp.wait_ms = Deserialize<int>(view, offset);
   rp.peer_addr = Deserialize<std::string>(view, offset);
+  rp.response_code = Deserialize<int>(view, offset);
   return rp;
 }
 
@@ -184,12 +197,15 @@ class Switcher {
         SPDLOG_INFO("client {} close", get_remote_ipport(s));
         co_return;
       }
+      SPDLOG_INFO("get request package (type == {}) from {}", request_type_str[pkg.type], get_remote_ipport(s));
       if (pkg.type == request_type_push) {
         handle_push_request(std::move(s), pkg);
       } else if (pkg.type == request_type_pop) {
         handle_pop_request(std::move(s), pkg);
       } else if (pkg.type == request_type_close_topic) {
         co_await handle_close_topic_request(std::move(s), pkg);
+      } else if (pkg.type == request_type_check_topic_exist) {
+        co_await handle_check_topic_exist(std::move(s), pkg);
       } else {
         throw std::runtime_error("invalid request type for switcher now.");
       }
@@ -221,6 +237,21 @@ class Switcher {
       socket& push_socket = *socket_ptr;
       asio::co_spawn(ctx_, transfer_data(std::move(push_socket), std::move(s), pkg.topic), asio::detached);
     }
+  }
+
+  asio::awaitable<void> handle_check_topic_exist(socket s, const request_package& pkg) {
+    auto it = datas_.find(pkg.topic);
+    bool topic_exist = true;
+    if (it == datas_.end()) {
+      topic_exist = false;
+    }
+    response_package rpkg;
+    rpkg.topic = pkg.topic;
+    rpkg.response_code = topic_exist == true ? response_ok : response_topic_not_exist;
+    rpkg.wait_ms = 0;
+    co_await write_package<response_package>(s, rpkg);
+    asio::co_spawn(ctx_, handle(std::move(s)), asio::detached);
+    co_return;
   }
 
   asio::awaitable<void> handle_close_topic_request(socket s, const request_package& pkg) {
